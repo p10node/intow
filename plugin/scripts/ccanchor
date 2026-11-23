@@ -1,0 +1,71 @@
+#!/bin/sh
+# Runs the ccanchor binary that matches this plugin's version.
+#
+# Order: $CCANCHOR_BIN (development), a binary cached in $CLAUDE_PLUGIN_DATA,
+# else the release asset for this version from GitHub, verified against the
+# release's sha256 checksums. As a hook it never fails: Claude must start.
+set -u
+
+REPO="p10node/ccanchor"
+here=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+root=${CLAUDE_PLUGIN_ROOT:-$(dirname -- "$here")}
+mode=${1:-}
+
+fail() {
+  [ "$mode" = hook ] && exit 0
+  echo "ccanchor: $*" >&2
+  exit 1
+}
+
+if [ -n "${CCANCHOR_BIN:-}" ]; then
+  exec "$CCANCHOR_BIN" "$@"
+fi
+
+version=$(sed -n 's/^[[:space:]]*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$root/.claude-plugin/plugin.json" | head -n 1)
+[ -n "$version" ] || fail "cannot read the plugin version"
+data=${CLAUDE_PLUGIN_DATA:-$HOME/.claude/ccanchor}
+bin="$data/bin/ccanchor-$version"
+
+download() {
+  case $(uname -s) in
+    Darwin) os=darwin ;;
+    Linux) os=linux ;;
+    *) fail "unsupported OS: $(uname -s)" ;;
+  esac
+  case $(uname -m) in
+    x86_64 | amd64) arch=amd64 ;;
+    arm64 | aarch64) arch=arm64 ;;
+    *) fail "unsupported CPU: $(uname -m)" ;;
+  esac
+  asset="ccanchor_${version}_${os}_${arch}.tar.gz"
+  base="${CCANCHOR_RELEASE_BASE:-https://github.com/$REPO/releases/download}/v$version"
+  tmp=$(mktemp -d 2>/dev/null) || fail "mktemp failed"
+  get() { curl -fsSL --retry 2 -o "$2" "$1" 2>/dev/null || wget -q -O "$2" "$1" 2>/dev/null; }
+  if ! get "$base/$asset" "$tmp/$asset" || ! get "$base/ccanchor_${version}_checksums.txt" "$tmp/sums"; then
+    rm -rf "$tmp"
+    fail "could not download $asset"
+  fi
+  want=$(grep " $asset\$" "$tmp/sums" | cut -d' ' -f1)
+  if command -v shasum >/dev/null 2>&1; then
+    got=$(shasum -a 256 "$tmp/$asset" | cut -d' ' -f1)
+  else
+    got=$(sha256sum "$tmp/$asset" | cut -d' ' -f1)
+  fi
+  if [ -z "$want" ] || [ "$want" != "$got" ]; then
+    rm -rf "$tmp"
+    fail "checksum mismatch for $asset"
+  fi
+  if ! tar -xzf "$tmp/$asset" -C "$tmp" ccanchor || ! mkdir -p "$data/bin" ||
+    ! mv "$tmp/ccanchor" "$bin.$$" || ! chmod 755 "$bin.$$" || ! mv "$bin.$$" "$bin"; then
+    rm -rf "$tmp" "$bin.$$"
+    fail "could not install the binary into $data/bin"
+  fi
+  rm -rf "$tmp"
+  # drop binaries of older plugin versions
+  for old in "$data"/bin/ccanchor-*; do
+    [ "$old" = "$bin" ] || rm -f "$old"
+  done
+}
+
+[ -x "$bin" ] || download
+exec "$bin" "$@"

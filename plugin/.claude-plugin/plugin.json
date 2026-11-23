@@ -1,0 +1,13 @@
+{
+  "name": "ccanchor",
+  "version": "0.1.0",
+  "description": "Keeps Claude Code history, memory and per-folder settings attached to folders you move or rename. Works with Finder, editors and plain mv; no command to remember.",
+  "author": {
+    "name": "p10node",
+    "url": "https://github.com/p10node"
+  },
+  "homepage": "https://github.com/p10node/ccanchor",
+  "repository": "https://github.com/p10node/ccanchor",
+  "license": "MIT",
+  "keywords": ["history", "memory", "sessions", "rename", "move", "resume"]
+}

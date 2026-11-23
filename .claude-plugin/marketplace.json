@@ -1,0 +1,15 @@
+{
+  "name": "ccanchor",
+  "description": "Keep Claude Code history and memory attached to folders you move or rename",
+  "owner": {
+    "name": "p10node",
+    "url": "https://github.com/p10node"
+  },
+  "plugins": [
+    {
+      "name": "ccanchor",
+      "source": "./plugin",
+      "description": "Rename or move a project folder in Finder, your editor or the shell, and the next Claude Code session picks its sessions, memory and settings up again. No command to remember."
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+name: release
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Plugin version matches the tag
+        run: |
+          v=$(jq -r .version plugin/.claude-plugin/plugin.json)
+          if [ "v$v" != "$GITHUB_REF_NAME" ]; then
+            echo "plugin.json says $v but the tag is $GITHUB_REF_NAME"; exit 1
+          fi
+      - run: go test -count=1 ./...
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Update the Homebrew tap
+        if: env.TAP_TOKEN != ''
+        run: scripts/update-formula.sh "${GITHUB_REF_NAME#v}"
