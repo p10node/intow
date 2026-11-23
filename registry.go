@@ -26,7 +26,13 @@ type Entry struct {
 	Seen         int64  `json:"seen"`
 	MissingSince int64  `json:"missing_since,omitempty"`
 	LastScan     int64  `json:"last_scan,omitempty"`
+	// Found is where a disk scan last saw the folder, so a migration that was
+	// skipped (Claude still running in the old path) can be retried without
+	// waiting for the next scan.
+	Found string `json:"found,omitempty"`
 }
+
+func (e *Entry) ident() Ident { return Ident{Dev: e.Dev, Ino: e.Ino, Birth: e.Birth} }
 
 // Registry maps "dev:ino" to the folder last seen with that identity.
 type Registry struct {
@@ -154,8 +160,8 @@ func plan(r *Registry) []action {
 		id, err := statIdent(e.Path)
 		if err == nil {
 			if id.Ino == e.Ino && (e.Birth == 0 || id.Birth == e.Birth) {
-				if e.MissingSince != 0 {
-					e.MissingSince = 0
+				if e.MissingSince != 0 || e.Found != "" {
+					e.MissingSince, e.Found = 0, ""
 					r.dirty = true
 				}
 				continue
@@ -171,11 +177,21 @@ func plan(r *Registry) []action {
 			continue // e.g. permission denied: cannot tell
 		}
 		cur := platformResolve(e)
+		if cur == "" && e.Found != "" {
+			if id, err := statIdent(e.Found); err == nil && id == e.ident() {
+				cur = e.Found
+			} else {
+				e.Found = "" // moved again since the scan
+				r.dirty = true
+			}
+		}
 		if cur == "" && scanFallback && now-e.LastScan > 3600 &&
 			(e.MissingSince == 0 || now-e.MissingSince < 30*86400) {
 			e.LastScan = now
 			r.dirty = true
-			cur = scanResolve(e, 800*time.Millisecond)
+			if cur = scanResolve(e, 800*time.Millisecond); cur != "" {
+				e.Found = cur
+			}
 		}
 		switch {
 		case cur == "":
@@ -229,7 +245,7 @@ func scanResolve(e *Entry, budget time.Duration) string {
 				continue
 			}
 			p := filepath.Join(it.path, de.Name())
-			if id, err := statIdent(p); err == nil && id.Ino == e.Ino && id.Dev == e.Dev && id.Birth == e.Birth {
+			if id, err := statIdent(p); err == nil && id == e.ident() {
 				return p
 			}
 			if it.depth+1 < maxScanDepth {
