@@ -17,9 +17,9 @@ import (
 
 func TestEncodeKnown(t *testing.T) {
 	cases := map[string]string{
-		"/Users/p10node/WD/workplace--p10node/misc-research": "-Users-p10node-WD-workplace--p10node-misc-research",
-		"/private/var/folders/p_/3g670bz50jj4y67g7_hzrg1h0000gn/T":   "-private-var-folders-p--3g670bz50jj4y67g7-hzrg1h0000gn-T",
-		"/" + strings.Repeat("z", 199):                               "-" + strings.Repeat("z", 199),
+		"/Users/p10node/WD/workplace--p10node/misc-research":       "-Users-p10node-WD-workplace--p10node-misc-research",
+		"/private/var/folders/p_/3g670bz50jj4y67g7_hzrg1h0000gn/T": "-private-var-folders-p--3g670bz50jj4y67g7-hzrg1h0000gn-T",
+		"/" + strings.Repeat("z", 199):                             "-" + strings.Repeat("z", 199),
 	}
 	for in, want := range cases {
 		if got := encode(in); got != want {
