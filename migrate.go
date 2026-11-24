@@ -607,6 +607,51 @@ func rekeyGlobalJSON(raw []byte, old, new string) (out []byte, keys, repos int, 
 	return out, keys, repos, ops
 }
 
+// copySettings gives new a copy of the ~/.claude.json entries of old, where
+// new has none yet, and leaves old's in place. It is for a config dir that
+// finds a folder already followed (by another config dir sharing the projects
+// folder) while another folder has taken the old path: the entry may belong
+// to either, so neither loses it.
+func copySettings(old, new string) (int, error) {
+	n := 0
+	err := editClaudeJSON(globalJSONPath(), func(raw []byte) []byte {
+		n = 0
+		root, err := parseObject(raw)
+		if err != nil {
+			return nil
+		}
+		pj, ok := root.get("projects")
+		if !ok {
+			return nil
+		}
+		projects, err := parseObject(pj)
+		if err != nil {
+			return nil
+		}
+		for _, k := range append([]string(nil), projects.keys...) {
+			nk, ok := rebasePath(k, old, new)
+			if !ok {
+				continue
+			}
+			if _, has := projects.get(nk); has {
+				continue
+			}
+			projects.set(nk, projects.vals[k])
+			n++
+		}
+		if n == 0 {
+			return nil
+		}
+		root.set("projects", projects.marshal())
+		out := pretty(root.marshal())
+		if bytes.HasSuffix(raw, []byte("\n")) {
+			out = append(out, '\n')
+		}
+		return out
+	})
+	return n, err
+}
+
 func updateGlobalJSON(old, new string, rep *Report, dryRun bool) error {
 	path := globalJSONPath()
 	if dryRun {

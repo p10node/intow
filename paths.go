@@ -51,6 +51,19 @@ func hasPrefix(s, prefix string) bool {
 	return len(s) >= len(prefix) && samePath(s[:len(prefix)], prefix)
 }
 
+// lockPath is the file that serialises ccanchor runs. Config dirs that share
+// one projects folder (profiles that symlink it to the main config dir) must
+// share the lock too: they move the same files.
+func lockPath() string {
+	if real, err := filepath.EvalSymlinks(projectsDir()); err == nil && real != filepath.Clean(projectsDir()) {
+		dir := filepath.Join(filepath.Dir(real), "ccanchor")
+		if os.MkdirAll(dir, 0o755) == nil {
+			return filepath.Join(dir, "lock")
+		}
+	}
+	return filepath.Join(stateDir(), "lock")
+}
+
 // under reports whether path is root or inside it.
 func under(path, root string) bool {
 	if path == "" || root == "" {

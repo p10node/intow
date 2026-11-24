@@ -55,6 +55,16 @@ func checkNaming(cwd, transcript string) (n naming, got, folder string) {
 	return namingDrift, got, rec
 }
 
+// hasEarlierSessions reports whether cwd has sessions other than the one starting.
+func hasEarlierSessions(cwd, current string) bool {
+	for _, t := range transcripts(filepath.Join(projectsDir(), encode(cwd))) {
+		if strings.TrimSuffix(filepath.Base(t), ".jsonl") != current {
+			return true
+		}
+	}
+	return false
+}
+
 // sameDir reports whether two paths lead to one directory.
 func sameDir(a, b string) bool {
 	ia, err1 := statIdent(a)
@@ -115,6 +125,18 @@ func (c *cli) cmdHook(argv []string) (int, error) {
 						if err != nil {
 							return err
 						}
+					}
+				} else if exists(e.Path) && hasEarlierSessions(cwd, in.SessionID) {
+					// Another folder has the old path, and this one already has
+					// its history here: it was followed from another config dir
+					// that shares the projects folder. Only the settings of this
+					// config dir are left to catch up.
+					n, err := copySettings(e.Path, cwd)
+					if n > 0 {
+						reports = append(reports, &Report{Old: e.Path, New: cwd, ConfigKeys: n})
+					}
+					if err != nil {
+						return err
 					}
 				} else if exists(e.Path) {
 					was = e.Path

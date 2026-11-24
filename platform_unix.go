@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -48,7 +47,7 @@ func withLock(timeout time.Duration, fn func() error) error {
 	if err := os.MkdirAll(stateDir(), 0o755); err != nil {
 		return err
 	}
-	f, err := os.OpenFile(filepath.Join(stateDir(), "lock"), os.O_CREATE|os.O_RDWR, 0o644)
+	f, err := os.OpenFile(lockPath(), os.O_CREATE|os.O_RDWR, 0o644)
 	if err != nil {
 		return err
 	}

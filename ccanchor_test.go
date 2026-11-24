@@ -848,6 +848,70 @@ func TestReusedPathKeepsMovedFolder(t *testing.T) {
 	}
 }
 
+// Profiles: several config dirs share one projects folder through a symlink,
+// each with its own ~/.claude.json and registry. The first to start follows a
+// moved folder; the others only catch up on their own settings, share the
+// lock, and do not offer history that has been moved already.
+func TestConfigDirsSharingProjects(t *testing.T) {
+	s := newSandbox(t)
+	proj := s.setupProject()
+	main := filepath.Join(s.home, ".claude")
+	prof := filepath.Join(s.root, "profile")
+	must(t, os.MkdirAll(prof, 0o755))
+	needSymlink(t, filepath.Join(main, "projects"), filepath.Join(prof, "projects"))
+	gj, err := os.ReadFile(filepath.Join(s.home, ".claude.json"))
+	must(t, err)
+	must(t, os.WriteFile(filepath.Join(prof, ".claude.json"), gj, 0o600))
+	inProfile := func(f func()) {
+		t.Setenv("CLAUDE_CONFIG_DIR", prof)
+		defer t.Setenv("CLAUDE_CONFIG_DIR", "")
+		f()
+	}
+	inProfile(func() {
+		s.run("", "scan", "-q")
+		if want := filepath.Join(main, "ccanchor", "lock"); lockPath() != want {
+			t.Errorf("lock = %s, want the shared %s", lockPath(), want)
+		}
+	})
+
+	// The folder is moved aside and a new one takes its place.
+	aside := filepath.Join(s.work, "proj-old")
+	must(t, os.Rename(proj, aside))
+	if id, err := statIdent(aside); err != nil || (scanFallback && id.Birth == 0) {
+		t.Skip("filesystem has no birth time")
+	}
+	// The main config dir sees it first, before the new folder exists.
+	if out := s.hook(aside); out == nil || !isFile(filepath.Join(s.pdir(aside), "s1.jsonl")) {
+		t.Fatalf("main config dir did not follow: %v", out)
+	}
+	must(t, os.MkdirAll(proj, 0o755))
+	s.session(proj, "fresh", nil) // the new folder's own history, under the old path
+
+	inProfile(func() {
+		in, _ := json.Marshal(map[string]string{"session_id": "current", "cwd": aside,
+			"transcript_path": filepath.Join(prof, "projects", encode(aside), "current.jsonl")})
+		_, out, _ := s.run(string(in), "hook")
+		if strings.Contains(out, "link --force") {
+			t.Errorf("the profile offers history that was moved already: %s", out)
+		}
+		var pj struct {
+			Projects map[string]any `json:"projects"`
+		}
+		b, _ := os.ReadFile(filepath.Join(prof, ".claude.json"))
+		must(t, json.Unmarshal(b, &pj))
+		// The moved folder gets the settings; the folder now at the old path keeps them too.
+		if e, _ := pj.Projects[aside].(map[string]any); e == nil || e["hasTrustDialogAccepted"] != true || pj.Projects[proj] == nil {
+			t.Errorf("the profile's own settings did not follow: %v", pj.Projects)
+		}
+		if _, out, _ := s.run("", "status"); strings.Contains(out, "link --force") {
+			t.Errorf("status in the profile offers it: %s", out)
+		}
+	})
+	if !isFile(filepath.Join(s.pdir(proj), "fresh.jsonl")) || !isFile(filepath.Join(s.pdir(aside), "s1.jsonl")) {
+		t.Error("histories got mixed up")
+	}
+}
+
 func TestReusedPathForgetsDeletedFolder(t *testing.T) {
 	s := newSandbox(t)
 	proj := s.folder("solo")

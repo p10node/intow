@@ -50,7 +50,10 @@ func (c *cli) cmdStatus(argv []string) (int, error) {
 	var displaced [][2]string
 	for _, a := range plan(reg) {
 		if a.State == "replaced" {
-			if a.New != "" {
+			// Offer the old path's history to the folder that was moved aside,
+			// unless that folder has sessions where it is now: then it was
+			// followed already (by a config dir that shares the projects folder).
+			if a.New != "" && !hasEarlierSessions(a.New, "") {
 				displaced = append(displaced, [2]string{a.Old, a.New})
 			}
 			continue // the path itself is fine: another folder lives there
