@@ -1,0 +1,74 @@
+{
+  "name": "ccanchor",
+  "displayName": "ccanchor for Claude Code",
+  "description": "Claude Code history, memory and settings follow a project folder you moved or renamed, before the session list is read.",
+  "version": "0.1.0",
+  "publisher": "p10node",
+  "license": "MIT",
+  "homepage": "https://github.com/p10node/ccanchor",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/p10node/ccanchor.git",
+    "directory": "vscode"
+  },
+  "icon": "icon.png",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "claude",
+    "claude code",
+    "history",
+    "rename",
+    "move"
+  ],
+  "main": "./extension.js",
+  "activationEvents": [
+    "*"
+  ],
+  "extensionKind": [
+    "workspace"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": true
+    },
+    "virtualWorkspaces": true
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "ccanchor.sync",
+        "title": "ccanchor: Follow Moved Folders Now"
+      },
+      {
+        "command": "ccanchor.status",
+        "title": "ccanchor: Show Status"
+      }
+    ],
+    "configuration": {
+      "title": "ccanchor",
+      "properties": {
+        "ccanchor.path": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "markdownDescription": "Path of the `ccanchor` binary. Leave empty to find it on `PATH`, in the usual install folders, or where the Claude Code plugin keeps it."
+        },
+        "ccanchor.syncOnStartup": {
+          "type": "boolean",
+          "default": true,
+          "scope": "machine",
+          "description": "Follow moved folders when a window opens, before Claude Code reads its session list."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "test": "node --test",
+    "package": "npx --yes @vscode/vsce package --no-dependencies"
+  }
+}
