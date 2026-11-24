@@ -26,26 +26,28 @@ function claudeEnv(base, vars) {
   return env;
 }
 
-function expandHome(p, home) {
+function expandHome(p, home, join = path.join) {
   if (p === '~') return home;
-  return p.startsWith('~/') || p.startsWith('~\\') ? path.join(home, p.slice(2)) : p;
+  return p.startsWith('~/') || p.startsWith('~\\') ? join(home, p.slice(2)) : p;
 }
 
 /** Places to look for the binary, most specific first. */
 function candidates({ setting, env, home, platform, readdir }) {
   const exe = platform === 'win32' ? 'intow.exe' : 'intow';
+  // Paths are built for `platform`, not for the host this happens to run on.
+  const { join } = platform === 'win32' ? path.win32 : path.posix;
   const list = [];
-  if (setting) list.push(expandHome(setting, home));
+  if (setting) list.push(expandHome(setting, home, join));
   for (const dir of (env.PATH || env.Path || '').split(platform === 'win32' ? ';' : ':')) {
-    if (dir) list.push(path.join(dir, exe));
+    if (dir) list.push(join(dir, exe));
   }
   if (platform !== 'win32') list.push('/opt/homebrew/bin/intow', '/usr/local/bin/intow');
-  list.push(path.join(home, '.local', 'bin', exe));
+  list.push(join(home, '.local', 'bin', exe));
   // The config dir in use, then the default one: with several profiles the
   // binary is usually installed once, in ~/.claude.
-  for (const cfg of new Set([env.CLAUDE_CONFIG_DIR || path.join(home, '.claude'), path.join(home, '.claude')])) {
-    list.push(path.join(cfg, 'intow', 'bin', exe)); // `intow install --copy`
-    const data = path.join(cfg, 'plugins', 'data'); // the Claude Code plugin's own copy
+  for (const cfg of new Set([env.CLAUDE_CONFIG_DIR || join(home, '.claude'), join(home, '.claude')])) {
+    list.push(join(cfg, 'intow', 'bin', exe)); // `intow install --copy`
+    const data = join(cfg, 'plugins', 'data'); // the Claude Code plugin's own copy
     let names = [];
     try {
       names = readdir(data);
@@ -53,7 +55,7 @@ function candidates({ setting, env, home, platform, readdir }) {
       // no plugins installed
     }
     for (const name of names.sort()) {
-      if (name.includes('intow')) list.push(path.join(data, name, 'bin', exe));
+      if (name.includes('intow')) list.push(join(data, name, 'bin', exe));
     }
   }
   return [...new Set(list)];

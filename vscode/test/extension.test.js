@@ -53,6 +53,25 @@ test('candidates: default config dir, no plugins folder', () => {
   assert.ok(!list.some((p) => p.includes('plugins')));
 });
 
+test('candidates: Windows paths, whatever the host', () => {
+  const list = ext.candidates({
+    setting: '~\\tools\\intow.exe',
+    env: { Path: 'C:\\a;C:\\b', CLAUDE_CONFIG_DIR: 'D:\\cfg' },
+    home: 'C:\\Users\\u',
+    platform: 'win32',
+    readdir: (d) => (d === 'D:\\cfg\\plugins\\data' ? ['intow-intow'] : []),
+  });
+  assert.deepStrictEqual(list, [
+    'C:\\Users\\u\\tools\\intow.exe',
+    'C:\\a\\intow.exe',
+    'C:\\b\\intow.exe',
+    'C:\\Users\\u\\.local\\bin\\intow.exe',
+    'D:\\cfg\\intow\\bin\\intow.exe',
+    'D:\\cfg\\plugins\\data\\intow-intow\\bin\\intow.exe',
+    'C:\\Users\\u\\.claude\\intow\\bin\\intow.exe',
+  ]);
+});
+
 test('movedLines picks the migrations out of the sync output', () => {
   const out = 'moved /a -> /b (2 sessions, settings)\n    projects/-a -> -b  [rename]\nskip /c -> /d: Claude is still running there\n';
   assert.deepStrictEqual(ext.movedLines(out), ['/a -> /b (2 sessions, settings)']);
