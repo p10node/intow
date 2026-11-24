@@ -1,6 +1,6 @@
 {
   "name": "intow",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Keeps Claude Code history, memory and per-folder settings attached to folders you move or rename. Works with Finder, editors and plain mv; no command to remember.",
   "author": {
     "name": "p10node",
