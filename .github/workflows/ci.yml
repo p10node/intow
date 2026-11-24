@@ -24,7 +24,7 @@ jobs:
       - name: Every target compiles
         run: for os in darwin linux windows; do GOOS=$os GOARCH=arm64 go build -o /dev/null . || exit 1; done
       - name: Shell scripts parse
-        run: for f in plugin/scripts/ccanchor scripts/*.sh vscode/e2e/*.sh; do sh -n "$f"; done
+        run: for f in plugin/scripts/intow scripts/*.sh vscode/e2e/*.sh; do sh -n "$f"; done
       - uses: actions/setup-node@v4
         with:
           node-version: 22

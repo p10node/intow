@@ -10,7 +10,7 @@ const enc = (p) => p.replace(/[^a-zA-Z0-9]/g, '-');
 exports.run = async () => {
   const { E2E_CFG: cfg, E2E_OLD: a, E2E_NEW: b } = process.env;
   const moved = path.join(cfg, 'projects', enc(b), 's1.jsonl');
-  const ext = vscode.extensions.getExtension('p10node.ccanchor');
+  const ext = vscode.extensions.getExtension('p10node.intow');
   assert.ok(ext, 'extension not installed');
   const doneBeforeTests = fs.existsSync(moved);
   for (let i = 0; i < 150 && !fs.existsSync(moved); i++) await new Promise((r) => setTimeout(r, 100));
@@ -24,6 +24,6 @@ exports.run = async () => {
   assert.deepStrictEqual(Object.keys(gj.projects), [b]);
 
   const cmds = await vscode.commands.getCommands(true);
-  assert.ok(cmds.includes('ccanchor.sync') && cmds.includes('ccanchor.status'), 'commands not registered');
+  assert.ok(cmds.includes('intow.sync') && cmds.includes('intow.status'), 'commands not registered');
   console.log(`E2E OK (${vscode.env.appName} ${vscode.version}): history followed at startup; done before the test started: ${doneBeforeTests}`);
 };

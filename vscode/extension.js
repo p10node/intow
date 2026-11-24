@@ -1,9 +1,9 @@
 'use strict';
-// ccanchor for VS Code: runs `ccanchor sync --apply` when a window opens.
+// intow for VS Code: runs `intow sync --apply` when a window opens.
 //
 // The Claude Code extension reads its session list straight from
 // ~/.claude/projects/<encoded folder path> and does not watch that folder.
-// ccanchor's own SessionStart hook runs when the Claude panel starts a
+// intow's own SessionStart hook runs when the Claude panel starts a
 // session, which can be after the list was drawn: the history is back on disk,
 // but the list stays empty until it is reopened. Running the sync at window
 // startup puts the data in place before anything reads it.
@@ -13,7 +13,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const INSTALL_URL = 'https://github.com/p10node/ccanchor#install';
+const INSTALL_URL = 'https://github.com/p10node/intow#install';
 
 /** Environment Claude Code is launched with: the process env plus claudeCode.environmentVariables. */
 function claudeEnv(base, vars) {
@@ -33,18 +33,18 @@ function expandHome(p, home) {
 
 /** Places to look for the binary, most specific first. */
 function candidates({ setting, env, home, platform, readdir }) {
-  const exe = platform === 'win32' ? 'ccanchor.exe' : 'ccanchor';
+  const exe = platform === 'win32' ? 'intow.exe' : 'intow';
   const list = [];
   if (setting) list.push(expandHome(setting, home));
   for (const dir of (env.PATH || env.Path || '').split(platform === 'win32' ? ';' : ':')) {
     if (dir) list.push(path.join(dir, exe));
   }
-  if (platform !== 'win32') list.push('/opt/homebrew/bin/ccanchor', '/usr/local/bin/ccanchor');
+  if (platform !== 'win32') list.push('/opt/homebrew/bin/intow', '/usr/local/bin/intow');
   list.push(path.join(home, '.local', 'bin', exe));
   // The config dir in use, then the default one: with several profiles the
   // binary is usually installed once, in ~/.claude.
   for (const cfg of new Set([env.CLAUDE_CONFIG_DIR || path.join(home, '.claude'), path.join(home, '.claude')])) {
-    list.push(path.join(cfg, 'ccanchor', 'bin', exe)); // `ccanchor install --copy`
+    list.push(path.join(cfg, 'intow', 'bin', exe)); // `intow install --copy`
     const data = path.join(cfg, 'plugins', 'data'); // the Claude Code plugin's own copy
     let names = [];
     try {
@@ -53,7 +53,7 @@ function candidates({ setting, env, home, platform, readdir }) {
       // no plugins installed
     }
     for (const name of names.sort()) {
-      if (name.includes('ccanchor')) list.push(path.join(data, name, 'bin', exe));
+      if (name.includes('intow')) list.push(path.join(data, name, 'bin', exe));
     }
   }
   return [...new Set(list)];
@@ -73,7 +73,7 @@ function isExecutable(p) {
   }
 }
 
-/** The "moved OLD -> NEW (...)" lines of `ccanchor sync --apply`. */
+/** The "moved OLD -> NEW (...)" lines of `intow sync --apply`. */
 function movedLines(stdout) {
   return String(stdout)
     .split(/\r?\n/)
@@ -91,14 +91,14 @@ function run(bin, args, env) {
 
 function activate(context) {
   const vscode = require('vscode');
-  const out = vscode.window.createOutputChannel('ccanchor');
+  const out = vscode.window.createOutputChannel('intow');
   context.subscriptions.push(out);
   const log = (s) => out.appendLine(`${new Date().toISOString()} ${s}`);
 
   const locate = () => {
     const env = claudeEnv(process.env, vscode.workspace.getConfiguration('claudeCode').get('environmentVariables'));
     const list = candidates({
-      setting: vscode.workspace.getConfiguration('ccanchor').get('path'),
+      setting: vscode.workspace.getConfiguration('intow').get('path'),
       env,
       home: os.homedir(),
       platform: process.platform,
@@ -112,12 +112,12 @@ function activate(context) {
     running = running.then(async () => {
       const { env, bin, list } = locate();
       if (!bin) {
-        log(`${reason}: ccanchor binary not found; looked in ${list.length} places`);
+        log(`${reason}: intow binary not found; looked in ${list.length} places`);
         const told = context.globalState.get('toldMissing');
         if (interactive || !told) {
           context.globalState.update('toldMissing', true);
           const pick = await vscode.window.showWarningMessage(
-            'ccanchor: the ccanchor binary was not found. Install it, or set "ccanchor.path".',
+            'intow: the intow binary was not found. Install it, or set "intow.path".',
             'How to install',
           );
           if (pick) vscode.env.openExternal(vscode.Uri.parse(INSTALL_URL));
@@ -130,19 +130,19 @@ function activate(context) {
       for (const l of (res.stdout + res.stderr).split(/\r?\n/)) if (l.trim()) out.appendLine('    ' + l);
       if (moved.length > 0) {
         vscode.window.showInformationMessage(
-          `ccanchor: Claude Code history followed ${moved.length === 1 ? moved[0] : moved.length + ' folders'}. ` +
+          `intow: Claude Code history followed ${moved.length === 1 ? moved[0] : moved.length + ' folders'}. ` +
             'If a session list was already open, refresh it.',
         );
       } else if (interactive) {
-        vscode.window.showInformationMessage(res.code === 0 ? 'ccanchor: nothing moved.' : `ccanchor: ${res.stderr.trim() || 'failed'}`);
+        vscode.window.showInformationMessage(res.code === 0 ? 'intow: nothing moved.' : `intow: ${res.stderr.trim() || 'failed'}`);
       }
     });
     return running;
   };
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('ccanchor.sync', () => sync('command', true)),
-    vscode.commands.registerCommand('ccanchor.status', async () => {
+    vscode.commands.registerCommand('intow.sync', () => sync('command', true)),
+    vscode.commands.registerCommand('intow.status', async () => {
       const { env, bin } = locate();
       out.show(true);
       if (!bin) return sync('status', true);
@@ -151,13 +151,13 @@ function activate(context) {
     }),
     vscode.workspace.onDidChangeWorkspaceFolders(() => sync('workspace folders changed', false)),
     vscode.workspace.onDidChangeConfiguration((e) => {
-      if (e.affectsConfiguration('claudeCode.environmentVariables') || e.affectsConfiguration('ccanchor.path')) {
+      if (e.affectsConfiguration('claudeCode.environmentVariables') || e.affectsConfiguration('intow.path')) {
         sync('configuration changed', false);
       }
     }),
   );
 
-  if (vscode.workspace.getConfiguration('ccanchor').get('syncOnStartup') !== false) {
+  if (vscode.workspace.getConfiguration('intow').get('syncOnStartup') !== false) {
     return sync('startup', false); // returned so tests can await it; VS Code does not wait on it for other extensions
   }
 }

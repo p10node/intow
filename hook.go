@@ -105,7 +105,7 @@ func (c *cli) cmdHook(argv []string) (int, error) {
 		}
 		if reg.Drift != nil {
 			warnings = append(warnings, "automatic following is paused: "+reg.Drift.String()+
-				"; update ccanchor (the naming scheme of Claude Code changed)")
+				"; update intow (the naming scheme of Claude Code changed)")
 			return reg.save()
 		}
 		if id, err := statIdent(cwd); err == nil && !isTemp(cwd) {
@@ -142,7 +142,7 @@ func (c *cli) cmdHook(argv []string) (int, error) {
 					was = e.Path
 					warnings = append(warnings, fmt.Sprintf(
 						"this folder used to be %s, which now holds another folder; if the history recorded there belongs here, "+
-							"`ccanchor link --force %s %s` moves all of it (`-n` shows what first)",
+							"`intow link --force %s %s` moves all of it (`-n` shows what first)",
 						e.Path, shellQuote(e.Path), shellQuote(cwd)))
 				} else {
 					// Put the data where Claude keeps this session, unless that
@@ -192,9 +192,9 @@ func (c *cli) cmdHook(argv []string) (int, error) {
 	if len(parts) == 0 {
 		return 0, nil
 	}
-	out := map[string]any{"systemMessage": "ccanchor: " + strings.Join(parts, "; ")}
+	out := map[string]any{"systemMessage": "intow: " + strings.Join(parts, "; ")}
 	if here != nil && here.changed() {
-		ctx := fmt.Sprintf("This project folder was moved from %s to %s. ccanchor re-attached its Claude Code history "+
+		ctx := fmt.Sprintf("This project folder was moved from %s to %s. intow re-attached its Claude Code history "+
 			"(%d earlier session(s), including subfolders; /resume lists them again) and its auto-memory.",
 			here.Old, here.New, here.Sessions)
 		if idx := memoryIndex(cwd, in.TranscriptPath); idx != "" {

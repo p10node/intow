@@ -1,9 +1,9 @@
-// Command ccanchor keeps Claude Code chat history and memory attached to a
+// Command intow keeps Claude Code chat history and memory attached to a
 // folder after the folder is moved or renamed.
 //
 // Claude Code stores each folder's sessions and auto-memory under
 // ~/.claude/projects/<encoded absolute path>/ and its per-folder settings
-// under "projects" in ~/.claude.json. ccanchor records each folder's
+// under "projects" in ~/.claude.json. intow records each folder's
 // filesystem identity (device, inode, birth time) from a SessionStart hook.
 // When a recorded path disappears it finds where the folder went (on macOS
 // through /.vol; on Linux by scanning nearby) and re-keys Claude's data.
@@ -19,23 +19,23 @@ import (
 
 var version = "dev"
 
-const usage = `ccanchor keeps Claude Code history and memory attached to folders you move or rename.
+const usage = `intow keeps Claude Code history and memory attached to folders you move or rename.
 
 Usage:
-  ccanchor status [--json]           folders Claude knows about and whether they moved
-  ccanchor sync [--apply] [-q]       follow tracked folders that moved (dry run by default)
-  ccanchor mv [-n] [-f] SRC DST      move a folder together with its Claude data
-  ccanchor link [-n] [-f] OLD NEW    attach the data of a path that is gone to folder NEW
-  ccanchor scan [-q]                 start tracking every existing project folder
-  ccanchor forget PATH...            stop tracking folders
-  ccanchor log [-n N]                past migrations
-  ccanchor undo [-n] [FOLDER]        take the last migration back (of FOLDER, if given)
-  ccanchor shell-init [SHELL]        a claude function that syncs first (zsh, bash, fish, powershell):
-                                       eval "$(ccanchor shell-init)"
-  ccanchor install [--bin-dir DIR]   add the SessionStart hook to ~/.claude/settings.json
-  ccanchor uninstall [--purge]       remove that hook (--purge: also all ccanchor state)
-  ccanchor hook                      the SessionStart hook itself (run by Claude Code)
-  ccanchor version
+  intow status [--json]           folders Claude knows about and whether they moved
+  intow sync [--apply] [-q]       follow tracked folders that moved (dry run by default)
+  intow mv [-n] [-f] SRC DST      move a folder together with its Claude data
+  intow link [-n] [-f] OLD NEW    attach the data of a path that is gone to folder NEW
+  intow scan [-q]                 start tracking every existing project folder
+  intow forget PATH...            stop tracking folders
+  intow log [-n N]                past migrations
+  intow undo [-n] [FOLDER]        take the last migration back (of FOLDER, if given)
+  intow shell-init [SHELL]        a claude function that syncs first (zsh, bash, fish, powershell):
+                                    eval "$(intow shell-init)"
+  intow install [--bin-dir DIR]   add the SessionStart hook to ~/.claude/settings.json
+  intow uninstall [--purge]       remove that hook (--purge: also all intow state)
+  intow hook                      the SessionStart hook itself (run by Claude Code)
+  intow version
 
 -n is --dry-run, -f is --force, -q is --quiet.
 `
@@ -67,7 +67,7 @@ func (c *cli) run(argv []string) int {
 	}
 	switch cmd {
 	case "version", "--version":
-		c.printf("ccanchor %s\n", version)
+		c.printf("intow %s\n", version)
 		return 0
 	case "help", "-h", "--help":
 		c.printf("%s", usage)
@@ -75,7 +75,7 @@ func (c *cli) run(argv []string) int {
 	}
 	fn, ok := commands[cmd]
 	if !ok {
-		fmt.Fprintf(c.stderr, "ccanchor: unknown command %q\n\n%s", cmd, usage)
+		fmt.Fprintf(c.stderr, "intow: unknown command %q\n\n%s", cmd, usage)
 		return 2
 	}
 	code, err := fn(argv)
@@ -84,7 +84,7 @@ func (c *cli) run(argv []string) int {
 		return 0
 	}
 	if err != nil {
-		fmt.Fprintln(c.stderr, "ccanchor: "+err.Error())
+		fmt.Fprintln(c.stderr, "intow: "+err.Error())
 		if code == 0 {
 			code = 1
 		}

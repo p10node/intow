@@ -35,9 +35,9 @@ func globalJSONPath() string {
 }
 
 func projectsDir() string  { return filepath.Join(configDir(), "projects") }
-func stateDir() string     { return filepath.Join(configDir(), "ccanchor") }
+func stateDir() string     { return filepath.Join(configDir(), "intow") }
 func settingsPath() string { return filepath.Join(configDir(), "settings.json") }
-func installedBin() string { return filepath.Join(stateDir(), "bin", "ccanchor"+exeSuffix) }
+func installedBin() string { return filepath.Join(stateDir(), "bin", "intow"+exeSuffix) }
 
 // samePath compares two paths the way the platform does (see foldCase).
 func samePath(a, b string) bool {
@@ -51,12 +51,12 @@ func hasPrefix(s, prefix string) bool {
 	return len(s) >= len(prefix) && samePath(s[:len(prefix)], prefix)
 }
 
-// lockPath is the file that serialises ccanchor runs. Config dirs that share
+// lockPath is the file that serialises intow runs. Config dirs that share
 // one projects folder (profiles that symlink it to the main config dir) must
 // share the lock too: they move the same files.
 func lockPath() string {
 	if real, err := filepath.EvalSymlinks(projectsDir()); err == nil && real != filepath.Clean(projectsDir()) {
-		dir := filepath.Join(filepath.Dir(real), "ccanchor")
+		dir := filepath.Join(filepath.Dir(real), "intow")
 		if os.MkdirAll(dir, 0o755) == nil {
 			return filepath.Join(dir, "lock")
 		}

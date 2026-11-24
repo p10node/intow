@@ -1,9 +1,9 @@
 # Rendered by scripts/update-formula.sh into github.com/p10node/homebrew-tap.
 # A formula built from source: no code signing or notarization involved.
-class Ccanchor < Formula
+class Intow < Formula
   desc "Keep Claude Code history and memory attached to folders you move or rename"
-  homepage "https://github.com/p10node/ccanchor"
-  url "https://github.com/p10node/ccanchor/archive/refs/tags/v@VERSION@.tar.gz"
+  homepage "https://github.com/p10node/intow"
+  url "https://github.com/p10node/intow/archive/refs/tags/v@VERSION@.tar.gz"
   sha256 "@SHA256@"
   license "MIT"
 
@@ -16,16 +16,16 @@ class Ccanchor < Formula
   def caveats
     <<~EOS
       Turn it on for Claude Code with either:
-        ccanchor install                              # SessionStart hook in ~/.claude/settings.json
+        intow install                              # SessionStart hook in ~/.claude/settings.json
       or, inside Claude Code, the plugin (then you can skip the hook above):
-        /plugin marketplace add p10node/ccanchor
-        /plugin install ccanchor@ccanchor
+        /plugin marketplace add p10node/intow
+        /plugin install intow@intow
     EOS
   end
 
   test do
-    assert_match "ccanchor #{version}", shell_output("#{bin}/ccanchor version")
+    assert_match "intow #{version}", shell_output("#{bin}/intow version")
     ENV["HOME"] = testpath
-    assert_match "STATE", shell_output("#{bin}/ccanchor status")
+    assert_match "STATE", shell_output("#{bin}/intow status")
   end
 end

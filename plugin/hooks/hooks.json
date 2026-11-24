@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}/scripts/ccanchor\" hook",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/scripts/intow\" hook",
             "timeout": 60
           }
         ]

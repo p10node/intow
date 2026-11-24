@@ -1,34 +1,34 @@
 #!/bin/sh
-# Runs the ccanchor binary that matches this plugin's version.
+# Runs the intow binary that matches this plugin's version.
 #
-# Order: $CCANCHOR_BIN (development), a binary cached in $CLAUDE_PLUGIN_DATA,
+# Order: $INTOW_BIN (development), a binary cached in $CLAUDE_PLUGIN_DATA,
 # else the release asset for this version from GitHub. The download must match
 # the sha256 pinned in this plugin's own checksums.txt, which the release
 # workflow commits next to the version bump: replacing a release asset is not
 # enough to change what runs. As a hook it never fails: Claude must start.
 set -u
 
-REPO="p10node/ccanchor"
+REPO="p10node/intow"
 here=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 root=${CLAUDE_PLUGIN_ROOT:-$(dirname -- "$here")}
 mode=${1:-}
 
 fail() {
   [ "$mode" = hook ] && exit 0
-  echo "ccanchor: $*" >&2
+  echo "intow: $*" >&2
   exit 1
 }
 
-if [ -n "${CCANCHOR_BIN:-}" ]; then
-  exec "$CCANCHOR_BIN" "$@"
+if [ -n "${INTOW_BIN:-}" ]; then
+  exec "$INTOW_BIN" "$@"
 fi
 
 version=$(sed -n 's/^[[:space:]]*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$root/.claude-plugin/plugin.json" | head -n 1)
 [ -n "$version" ] || fail "cannot read the plugin version"
-data=${CLAUDE_PLUGIN_DATA:-$HOME/.claude/ccanchor}
+data=${CLAUDE_PLUGIN_DATA:-$HOME/.claude/intow}
 exe=
 case $(uname -s) in MINGW* | MSYS* | CYGWIN*) exe=.exe ;; esac
-bin="$data/bin/ccanchor-$version$exe"
+bin="$data/bin/intow-$version$exe"
 
 download() {
   case $(uname -s) in
@@ -42,9 +42,9 @@ download() {
     arm64 | aarch64) arch=arm64 ;;
     *) fail "unsupported CPU: $(uname -m)" ;;
   esac
-  asset="ccanchor_${version}_${os}_${arch}.tar.gz"
-  base="${CCANCHOR_RELEASE_BASE:-https://github.com/$REPO/releases/download}/v$version"
-  sums=${CCANCHOR_CHECKSUMS:-$root/checksums.txt}
+  asset="intow_${version}_${os}_${arch}.tar.gz"
+  base="${INTOW_RELEASE_BASE:-https://github.com/$REPO/releases/download}/v$version"
+  sums=${INTOW_CHECKSUMS:-$root/checksums.txt}
   want=$(grep " $asset\$" "$sums" 2>/dev/null | cut -d' ' -f1 | head -n 1)
   [ -n "$want" ] || fail "no checksum for $asset in $sums"
   tmp=$(mktemp -d 2>/dev/null) || fail "mktemp failed"
@@ -62,21 +62,21 @@ download() {
     rm -rf "$tmp"
     fail "checksum mismatch for $asset"
   fi
-  if ! tar -xzf "$tmp/$asset" -C "$tmp" "ccanchor$exe" || ! mkdir -p "$data/bin" ||
-    ! mv "$tmp/ccanchor$exe" "$bin.$$" || ! chmod 755 "$bin.$$" || ! mv "$bin.$$" "$bin"; then
+  if ! tar -xzf "$tmp/$asset" -C "$tmp" "intow$exe" || ! mkdir -p "$data/bin" ||
+    ! mv "$tmp/intow$exe" "$bin.$$" || ! chmod 755 "$bin.$$" || ! mv "$bin.$$" "$bin"; then
     rm -rf "$tmp" "$bin.$$"
     fail "could not install the binary into $data/bin"
   fi
   rm -rf "$tmp"
   # drop binaries of older plugin versions
-  for old in "$data"/bin/ccanchor-*; do
+  for old in "$data"/bin/intow-*; do
     [ "$old" = "$bin" ] || rm -f "$old"
   done
-  # a name that survives plugin updates, for `ccanchor shell-init` and the editor extension
+  # a name that survives plugin updates, for `intow shell-init` and the editor extension
   if [ -n "$exe" ]; then
-    cp -f "$bin" "$data/bin/ccanchor$exe" 2>/dev/null || true # no symlinks without admin rights
+    cp -f "$bin" "$data/bin/intow$exe" 2>/dev/null || true # no symlinks without admin rights
   else
-    ln -sf "ccanchor-$version" "$data/bin/ccanchor" 2>/dev/null || true
+    ln -sf "intow-$version" "$data/bin/intow" 2>/dev/null || true
   fi
 }
 

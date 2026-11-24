@@ -160,22 +160,22 @@ func (c *cli) cmdStatus(argv []string) (int, error) {
 		}
 		c.printf("%s\n", line)
 		if r.Suggest != "" {
-			hints = append(hints, "ccanchor link "+shellQuote(r.Path)+" "+shellQuote(r.Suggest))
+			hints = append(hints, "intow link "+shellQuote(r.Path)+" "+shellQuote(r.Suggest))
 		}
 		untracked = untracked || r.State == "untracked"
 		movedAny = movedAny || r.State == "moved"
 	}
 	if movedAny {
-		c.printf("\nMoved folders are followed at the next Claude start, or now with `ccanchor sync --apply`.\n")
+		c.printf("\nMoved folders are followed at the next Claude start, or now with `intow sync --apply`.\n")
 	}
 	if len(hints) > 0 {
-		c.printf("\nOrphans (folder gone before ccanchor saw where it went). Likely matches, check with -n first:\n")
+		c.printf("\nOrphans (folder gone before intow saw where it went). Likely matches, check with -n first:\n")
 		for _, h := range hints {
 			c.printf("  %s\n", h)
 		}
 	}
 	if untracked {
-		c.printf("\nSome folders are untracked; `ccanchor scan` records them.\n")
+		c.printf("\nSome folders are untracked; `intow scan` records them.\n")
 	}
 	shown := false
 	for _, d := range displaced {
@@ -187,10 +187,10 @@ func (c *cli) cmdStatus(argv []string) (int, error) {
 				"belongs to the moved folder, this moves all of it (check with -n first):\n")
 			shown = true
 		}
-		c.printf("  ccanchor link --force %s %s\n", shellQuote(d[0]), shellQuote(d[1]))
+		c.printf("  intow link --force %s %s\n", shellQuote(d[0]), shellQuote(d[1]))
 	}
 	if reg.Drift != nil {
-		c.printf("\nAutomatic following is paused: %s.\nUpdate ccanchor; it resumes when the names agree again.\n", reg.Drift)
+		c.printf("\nAutomatic following is paused: %s.\nUpdate intow; it resumes when the names agree again.\n", reg.Drift)
 	}
 	return 0, nil
 }
@@ -364,7 +364,7 @@ func (c *cli) cmdSync(argv []string) (int, error) {
 		if quiet {
 			return 0, nil
 		}
-		return 1, fmt.Errorf("paused: %s; update ccanchor", paused)
+		return 1, fmt.Errorf("paused: %s; update intow", paused)
 	}
 	if !c.printReports(reports, !apply, quiet) && !quiet {
 		c.printf("nothing moved\n")
@@ -400,7 +400,7 @@ func (c *cli) cmdLink(argv []string) (int, error) {
 		return 2, err
 	}
 	if len(o.args) != 2 {
-		return 2, errors.New("usage: ccanchor link [-n] [-f] OLD NEW")
+		return 2, errors.New("usage: intow link [-n] [-f] OLD NEW")
 	}
 	dry, force := o.has("n", "dry-run"), o.has("f", "force")
 	old, new := absClean(o.args[0]), realDir(o.args[1])
@@ -414,7 +414,7 @@ func (c *cli) cmdLink(argv []string) (int, error) {
 	run := func() error {
 		reg := loadRegistry()
 		if reg.Drift != nil && !dry && !force {
-			return fmt.Errorf("paused: %s; update ccanchor (or pass --force)", reg.Drift)
+			return fmt.Errorf("paused: %s; update intow (or pass --force)", reg.Drift)
 		}
 		opt := migrateOpts{DryRun: dry, Force: force}
 		if !dry {
@@ -455,7 +455,7 @@ func (c *cli) cmdMv(argv []string) (int, error) {
 		return 2, err
 	}
 	if len(o.args) != 2 {
-		return 2, errors.New("usage: ccanchor mv [-n] [-f] SRC DST")
+		return 2, errors.New("usage: intow mv [-n] [-f] SRC DST")
 	}
 	dry, force := o.has("n", "dry-run"), o.has("f", "force")
 	src, dst := realDir(o.args[0]), absClean(o.args[1])
@@ -486,7 +486,7 @@ func (c *cli) cmdMv(argv []string) (int, error) {
 		}
 	}
 	if d := loadRegistry().Drift; d != nil && !dry && !force {
-		return 1, fmt.Errorf("paused: %s; update ccanchor (or pass --force)", d)
+		return 1, fmt.Errorf("paused: %s; update intow (or pass --force)", d)
 	}
 	if dry {
 		rep, err := migrate(src, dst, migrateOpts{DryRun: true, Force: true})
@@ -567,7 +567,7 @@ func (c *cli) cmdUndo(argv []string) (int, error) {
 		return 2, err
 	}
 	if len(o.args) > 1 {
-		return 2, errors.New("usage: ccanchor undo [-n] [-f] [FOLDER]")
+		return 2, errors.New("usage: intow undo [-n] [-f] [FOLDER]")
 	}
 	folder := ""
 	if len(o.args) == 1 {
@@ -650,7 +650,7 @@ func (c *cli) cmdUndo(argv []string) (int, error) {
 		c.printf("    note: %s\n", n)
 	}
 	if !dry {
-		c.printf("%s is no longer tracked; `ccanchor link %s %s` attaches the history to it again\n",
+		c.printf("%s is no longer tracked; `intow link %s %s` attaches the history to it again\n",
 			j.New, shellQuote(j.Old), shellQuote(j.New))
 	}
 	return 0, nil
@@ -658,24 +658,24 @@ func (c *cli) cmdUndo(argv []string) (int, error) {
 
 // ---- shell-init
 
-// stableSelf is the path a shell function should call: `ccanchor` when that
+// stableSelf is the path a shell function should call: `intow` when that
 // is this binary, else the version-independent name next to the plugin's
 // binary, else the binary itself.
 func stableSelf() string {
 	self, err := os.Executable()
 	if err != nil {
-		return "ccanchor"
+		return "intow"
 	}
 	real, err := filepath.EvalSymlinks(self)
 	if err != nil {
 		real = self
 	}
-	if p, err := exec.LookPath("ccanchor"); err == nil {
+	if p, err := exec.LookPath("intow"); err == nil {
 		if r, err := filepath.EvalSymlinks(p); err == nil && r == real {
-			return "ccanchor"
+			return "intow"
 		}
 	}
-	if alias := filepath.Join(filepath.Dir(real), "ccanchor"+exeSuffix); alias != real {
+	if alias := filepath.Join(filepath.Dir(real), "intow"+exeSuffix); alias != real {
 		if r, err := filepath.EvalSymlinks(alias); err == nil && r == real {
 			return alias
 		}
@@ -702,8 +702,8 @@ func (c *cli) cmdShellInit(argv []string) (int, error) {
 	self := stableSelf()
 	if shell == "powershell" || shell == "pwsh" {
 		// Get-Command -CommandType Application skips this function and finds claude.exe or claude.cmd.
-		call := "ccanchor"
-		have := "Get-Command ccanchor -CommandType Application -ErrorAction SilentlyContinue"
+		call := "intow"
+		have := "Get-Command intow -CommandType Application -ErrorAction SilentlyContinue"
 		if filepath.IsAbs(self) {
 			q := "'" + strings.ReplaceAll(self, "'", "''") + "'"
 			call, have = "& "+q, "Test-Path -LiteralPath "+q
@@ -723,7 +723,7 @@ func (c *cli) cmdShellInit(argv []string) (int, error) {
 		if filepath.IsAbs(self) {
 			have = "test -x " + bin
 		}
-		c.printf("function claude --wraps claude --description 'Claude Code, after ccanchor followed moved folders'\n"+
+		c.printf("function claude --wraps claude --description 'Claude Code, after intow followed moved folders'\n"+
 			"    %s; and %s sync --apply -q\n    command claude $argv\nend\n", have, bin)
 	case "zsh", "bash", "sh", "ksh", "dash":
 		have := "command -v " + bin + " >/dev/null 2>&1"

@@ -67,7 +67,7 @@ func variants(old, new string) [][2]string {
 func isCrossDevice(err error) bool { return errors.Is(err, windows.ERROR_NOT_SAME_DEVICE) }
 
 func crossDeviceMove(src, dst string) error {
-	return errors.New("moving a folder to another drive is not supported here: move it with Explorer, then run `ccanchor link " +
+	return errors.New("moving a folder to another drive is not supported here: move it with Explorer, then run `intow link " +
 		src + " " + dst + "`")
 }
 
@@ -97,7 +97,7 @@ func processAlive(pid int) bool {
 	return code == 259 // STILL_ACTIVE
 }
 
-// withLock serialises ccanchor runs (several Claude sessions may start at once).
+// withLock serialises intow runs (several Claude sessions may start at once).
 func withLock(timeout time.Duration, fn func() error) error {
 	if err := os.MkdirAll(stateDir(), 0o755); err != nil {
 		return err
@@ -119,7 +119,7 @@ func withLock(timeout time.Duration, fn func() error) error {
 			return err
 		}
 		if time.Now().After(deadline) {
-			return errors.New("another ccanchor is running")
+			return errors.New("another intow is running")
 		}
 		time.Sleep(100 * time.Millisecond)
 	}

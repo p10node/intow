@@ -11,7 +11,7 @@ import (
 const exeSuffix = ""
 
 // statIdent uses statx for the birth time (ext4, btrfs, xfs, tmpfs on 4.11+).
-// Without one, ccanchor never follows a folder automatically, because Linux
+// Without one, intow never follows a folder automatically, because Linux
 // reuses inode numbers quickly.
 func statIdent(path string) (Ident, error) {
 	var sx unix.Statx_t

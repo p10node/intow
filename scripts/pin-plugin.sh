@@ -10,7 +10,7 @@ set -eu
 version=${1:?usage: pin-plugin.sh VERSION}
 branch=${RELEASE_BRANCH:-main}
 root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
-sums="$root/dist/ccanchor_${version}_checksums.txt"
+sums="$root/dist/intow_${version}_checksums.txt"
 grep -q '\.tar\.gz$' "$sums" 2>/dev/null || { echo "pin-plugin: no checksums in $sums (run goreleaser first)" >&2; exit 1; }
 
 tree=$root
@@ -25,7 +25,7 @@ fi
 
 {
   echo "# sha256 of the release assets for the version in .claude-plugin/plugin.json."
-  echo "# Written by scripts/pin-plugin.sh at release time. scripts/ccanchor runs no other download."
+  echo "# Written by scripts/pin-plugin.sh at release time. scripts/intow runs no other download."
   grep '\.tar\.gz$' "$sums"
 } >"$tree/plugin/checksums.txt"
 manifest="$tree/plugin/.claude-plugin/plugin.json"
@@ -42,6 +42,6 @@ if git -C "$tree" diff --cached --quiet; then
   echo "plugin already at $version"
   exit 0
 fi
-git -C "$tree" -c user.name="ccanchor release" -c user.email="noreply@github.com" commit -q -m "Plugin $version"
+git -C "$tree" -c user.name="intow release" -c user.email="noreply@github.com" commit -q -m "Plugin $version"
 git -C "$tree" push -q origin "HEAD:$branch"
 echo "pinned plugin $version on $branch"

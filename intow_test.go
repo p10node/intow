@@ -166,7 +166,7 @@ func (s *sandbox) hookAt(cwd, transcript string) map[string]any {
 	if code != 0 {
 		s.t.Fatalf("hook exit %d", code)
 	}
-	if b, err := os.ReadFile(filepath.Join(s.home, ".claude", "ccanchor", "error.log")); err == nil {
+	if b, err := os.ReadFile(filepath.Join(s.home, ".claude", "intow", "error.log")); err == nil {
 		s.t.Fatalf("hook error log: %s", b)
 	}
 	if strings.TrimSpace(out) == "" {
@@ -380,7 +380,7 @@ func TestMvCommand(t *testing.T) {
 
 func TestLinkMergesMemory(t *testing.T) {
 	s := newSandbox(t)
-	old := filepath.Join(s.work, "vscode-prj-managment") // gone before ccanchor saw it
+	old := filepath.Join(s.work, "vscode-prj-managment") // gone before intow saw it
 	s.session(old, "o1", map[string]string{
 		"MEMORY.md": "# Index\n- [Topic](topic.md) — old hook\n- [Only old](only.md)\n",
 		"topic.md":  "old body\n", "only.md": "x\n",
@@ -388,7 +388,7 @@ func TestLinkMergesMemory(t *testing.T) {
 	newp := s.folder("oss", "vscode-prj-management")
 	s.session(newp, "n1", map[string]string{"MEMORY.md": "# Index\n- [Topic](topic.md) — new hook\n", "topic.md": "new body\n"})
 	_, out, _ := s.run("", "status")
-	if !strings.Contains(out, "orphan") || !strings.Contains(out, "ccanchor link "+shellQuote(old)+" "+shellQuote(newp)) {
+	if !strings.Contains(out, "orphan") || !strings.Contains(out, "intow link "+shellQuote(old)+" "+shellQuote(newp)) {
 		t.Fatalf("status: %s", out)
 	}
 	if code, out, errs := s.run("", "link", old, newp); code != 0 {
@@ -506,7 +506,7 @@ func TestInstallIdempotentAndUninstall(t *testing.T) {
 	b, _ := os.ReadFile(sp)
 	must(t, json.Unmarshal(b, &st))
 	g := st.Hooks.SessionStart
-	if len(g) != 2 || g[0].Hooks[0].Command != "echo hi && true" || !strings.Contains(g[1].Hooks[0].Command, "ccanchor/bin/ccanchor"+exeSuffix) || !strings.HasSuffix(g[1].Hooks[0].Command, " hook") {
+	if len(g) != 2 || g[0].Hooks[0].Command != "echo hi && true" || !strings.Contains(g[1].Hooks[0].Command, "intow/bin/intow"+exeSuffix) || !strings.HasSuffix(g[1].Hooks[0].Command, " hook") {
 		t.Fatalf("settings after install:\n%s", b)
 	}
 	if !strings.Contains(string(b), "echo hi && true") {
@@ -522,6 +522,23 @@ func TestInstallIdempotentAndUninstall(t *testing.T) {
 	json.Unmarshal([]byte(orig), &before)
 	if !reflect.DeepEqual(after, before) {
 		t.Errorf("uninstall left:\n%s", b)
+	}
+}
+
+func TestOnlyOurHookIsOurs(t *testing.T) {
+	for cmd, want := range map[string]bool{
+		"/home/u/.claude/intow/bin/intow hook":                   true,
+		"'/home/my user/.claude/intow/bin/intow' hook":           true,
+		`"C:/Users/John Smith/.claude/intow/bin/intow.exe" hook`: true,
+		"intow hook":                           true,
+		"/opt/maintown/bin/notify hook":        false, // "intow" inside another word
+		"/home/u/.claude/intow/bin/other hook": false,
+		"/usr/bin/intow status":                false,
+		"echo intow hook && true":              false,
+	} {
+		if got := isOurHook(cmd); got != want {
+			t.Errorf("isOurHook(%q) = %v, want %v", cmd, got, want)
+		}
 	}
 }
 
@@ -582,11 +599,11 @@ func TestInstallKeepsSymlinkedSettings(t *testing.T) {
 		t.Fatalf("install: %s %s", out, errs)
 	}
 	b, _ := os.ReadFile(real)
-	if !isSymlink(link) || !strings.Contains(string(b), "ccanchor") || !strings.Contains(string(b), `"model"`) {
+	if !isSymlink(link) || !strings.Contains(string(b), "intow") || !strings.Contains(string(b), `"model"`) {
 		t.Errorf("symlink kept: %v, target:\n%s", isSymlink(link), b)
 	}
 	s.run("", "uninstall")
-	if b, _ := os.ReadFile(real); !isSymlink(link) || strings.Contains(string(b), "ccanchor") {
+	if b, _ := os.ReadFile(real); !isSymlink(link) || strings.Contains(string(b), "intow") {
 		t.Errorf("after uninstall, symlink kept: %v, target:\n%s", isSymlink(link), b)
 	}
 }
@@ -600,7 +617,7 @@ func TestInstallThroughDanglingRelativeSymlink(t *testing.T) {
 		t.Fatalf("install: %s %s", out, errs)
 	}
 	b, err := os.ReadFile(filepath.Join(s.home, "dotfiles", "settings.json"))
-	if err != nil || !isSymlink(link) || !strings.Contains(string(b), "ccanchor") {
+	if err != nil || !isSymlink(link) || !strings.Contains(string(b), "intow") {
 		t.Errorf("symlink kept: %v, target: %s %v", isSymlink(link), b, err)
 	}
 }
@@ -815,7 +832,7 @@ func TestReusedPathKeepsMovedFolder(t *testing.T) {
 	if !isFile(filepath.Join(s.pdir(proj), "s1.jsonl")) || !isFile(filepath.Join(s.pdir(sub(aside, "sub")), "s3.jsonl")) {
 		t.Fatal("the folder's history must stay, its subfolder's must follow")
 	}
-	hint := "ccanchor link --force " + shellQuote(proj) + " " + shellQuote(aside)
+	hint := "intow link --force " + shellQuote(proj) + " " + shellQuote(aside)
 	if _, out, _ := s.run("", "status"); !strings.Contains(out, hint) {
 		t.Fatalf("status should offer the history to the moved folder:\n%s", out)
 	}
@@ -869,7 +886,7 @@ func TestConfigDirsSharingProjects(t *testing.T) {
 	}
 	inProfile(func() {
 		s.run("", "scan", "-q")
-		if want := filepath.Join(main, "ccanchor", "lock"); lockPath() != want {
+		if want := filepath.Join(main, "intow", "lock"); lockPath() != want {
 			t.Errorf("lock = %s, want the shared %s", lockPath(), want)
 		}
 	})
@@ -1233,15 +1250,15 @@ func TestPluginLauncherPinsChecksum(t *testing.T) {
 	for _, d := range []string{filepath.Join(plug, ".claude-plugin"), filepath.Join(plug, "scripts"), rel, build} {
 		must(t, os.MkdirAll(d, 0o755))
 	}
-	must(t, os.WriteFile(filepath.Join(plug, ".claude-plugin", "plugin.json"), []byte("{\n  \"name\": \"ccanchor\",\n  \"version\": \"9.9.9\"\n}\n"), 0o644))
-	script, err := os.ReadFile(filepath.Join("plugin", "scripts", "ccanchor"))
+	must(t, os.WriteFile(filepath.Join(plug, ".claude-plugin", "plugin.json"), []byte("{\n  \"name\": \"intow\",\n  \"version\": \"9.9.9\"\n}\n"), 0o644))
+	script, err := os.ReadFile(filepath.Join("plugin", "scripts", "intow"))
 	must(t, err)
-	launcher := filepath.Join(plug, "scripts", "ccanchor")
+	launcher := filepath.Join(plug, "scripts", "intow")
 	must(t, os.WriteFile(launcher, script, 0o755))
-	must(t, os.WriteFile(filepath.Join(build, "ccanchor"), []byte("#!/bin/sh\necho ran \"$@\"\n"), 0o755))
+	must(t, os.WriteFile(filepath.Join(build, "intow"), []byte("#!/bin/sh\necho ran \"$@\"\n"), 0o755))
 	arch := map[string]string{"amd64": "amd64", "arm64": "arm64"}[runtime.GOARCH]
-	asset := "ccanchor_9.9.9_" + runtime.GOOS + "_" + arch + ".tar.gz"
-	if out, err := exec.Command("tar", "-czf", filepath.Join(rel, asset), "-C", build, "ccanchor").CombinedOutput(); err != nil {
+	asset := "intow_9.9.9_" + runtime.GOOS + "_" + arch + ".tar.gz"
+	if out, err := exec.Command("tar", "-czf", filepath.Join(rel, asset), "-C", build, "intow").CombinedOutput(); err != nil {
 		t.Fatalf("tar: %v %s", err, out)
 	}
 	blob, err := os.ReadFile(filepath.Join(rel, asset))
@@ -1250,7 +1267,7 @@ func TestPluginLauncherPinsChecksum(t *testing.T) {
 	run := func(args ...string) (string, error) {
 		cmd := exec.Command("sh", append([]string{launcher}, args...)...)
 		cmd.Env = append(os.Environ(), "CLAUDE_PLUGIN_ROOT="+plug, "CLAUDE_PLUGIN_DATA="+data,
-			"CCANCHOR_RELEASE_BASE=file://"+filepath.Join(root, "release"), "CCANCHOR_BIN=", "CCANCHOR_CHECKSUMS=")
+			"INTOW_RELEASE_BASE=file://"+filepath.Join(root, "release"), "INTOW_BIN=", "INTOW_CHECKSUMS=")
 		out, err := cmd.CombinedOutput()
 		return string(out), err
 	}
@@ -1273,7 +1290,7 @@ func TestPluginLauncherPinsChecksum(t *testing.T) {
 	if out, err := run("status", "--json"); err != nil || strings.TrimSpace(out) != "ran status --json" {
 		t.Fatalf("with the right checksum: %v %q", err, out)
 	}
-	if got, err := os.Readlink(filepath.Join(data, "bin", "ccanchor")); err != nil || got != "ccanchor-9.9.9" {
+	if got, err := os.Readlink(filepath.Join(data, "bin", "intow")); err != nil || got != "intow-9.9.9" {
 		t.Errorf("stable name: %q %v", got, err)
 	}
 }

@@ -1,17 +1,17 @@
 ---
 name: shell
-description: Set up ccanchor's shell function so that `claude --continue` and `claude --resume` find their session right after a folder was moved or renamed. Use when the user reports "No conversation found to continue" after renaming or moving a folder, or asks for ccanchor's shell integration.
-allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/ccanchor shell-init), Bash(${CLAUDE_PLUGIN_ROOT}/scripts/ccanchor shell-init *)
+description: Set up intow's shell function so that `claude --continue` and `claude --resume` find their session right after a folder was moved or renamed. Use when the user reports "No conversation found to continue" after renaming or moving a folder, or asks for intow's shell integration.
+allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/intow shell-init), Bash(${CLAUDE_PLUGIN_ROOT}/scripts/intow shell-init *)
 ---
 
-# ccanchor shell function
+# intow shell function
 
-Claude Code looks for the session to continue before it runs any hook. Right after a rename, `claude --continue` and `claude --resume` therefore fail, and ccanchor's hook never runs. A small `claude` shell function fixes this: it lets ccanchor follow moved folders first, then starts Claude.
+Claude Code looks for the session to continue before it runs any hook. Right after a rename, `claude --continue` and `claude --resume` therefore fail, and intow's hook never runs. A small `claude` shell function fixes this: it lets intow follow moved folders first, then starts Claude.
 
 Print the function for the user's shell (`zsh`, `bash` or `fish`; without an argument it uses `$SHELL`):
 
 ```
-${CLAUDE_PLUGIN_ROOT}/scripts/ccanchor shell-init
+${CLAUDE_PLUGIN_ROOT}/scripts/intow shell-init
 ```
 
 Then:

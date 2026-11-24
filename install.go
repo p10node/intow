@@ -11,9 +11,9 @@ import (
 
 const hookMatcher = "startup|resume"
 
-// hookBinary is the path the hook runs. A ccanchor found on PATH (e.g. Homebrew's
-// /opt/homebrew/bin/ccanchor) is used as is so upgrades apply; otherwise the
-// running binary is copied to ~/.claude/ccanchor/bin.
+// hookBinary is the path the hook runs. A intow found on PATH (e.g. Homebrew's
+// /opt/homebrew/bin/intow) is used as is so upgrades apply; otherwise the
+// running binary is copied to ~/.claude/intow/bin.
 func hookBinary(forceCopy bool) (string, error) {
 	self, err := os.Executable()
 	if err != nil {
@@ -24,7 +24,7 @@ func hookBinary(forceCopy bool) (string, error) {
 		selfReal = self
 	}
 	if !forceCopy {
-		if p, err := exec.LookPath("ccanchor"); err == nil {
+		if p, err := exec.LookPath("intow"); err == nil {
 			if r, err := filepath.EvalSymlinks(p); err == nil && r == selfReal {
 				return filepath.Abs(p)
 			}
@@ -39,8 +39,19 @@ func hookBinary(forceCopy bool) (string, error) {
 	return dst, nil
 }
 
+// isOurHook reports whether a hook command is `<path to intow> hook`. The
+// name has to be the program itself: "intow" also occurs inside other words.
 func isOurHook(cmd string) bool {
-	return strings.Contains(cmd, "ccanchor") && strings.HasSuffix(strings.TrimSpace(cmd), " hook")
+	prog, ok := strings.CutSuffix(strings.TrimSpace(cmd), " hook")
+	if !ok {
+		return false
+	}
+	prog = strings.Trim(strings.TrimSpace(prog), `'"`)
+	if i := strings.LastIndexAny(prog, `/\`); i >= 0 {
+		prog = prog[i+1:]
+	}
+	prog = strings.ToLower(prog)
+	return prog == "intow" || prog == "intow.exe"
 }
 
 func loadSettings() (*omap, []byte, error) {
@@ -69,7 +80,7 @@ func saveSettings(m *omap) (string, error) {
 	return b, atomicWrite(settingsPath(), append(pretty(m.marshal()), '\n'), 0o644)
 }
 
-// stripOurHooks removes ccanchor's SessionStart hook, leaving every other hook
+// stripOurHooks removes intow's SessionStart hook, leaving every other hook
 // byte-for-byte as it was.
 func stripOurHooks(root *omap) bool {
 	hraw, ok := root.get("hooks")
@@ -191,7 +202,7 @@ func (c *cli) cmdInstall(argv []string) (int, error) {
 		c.printf("added SessionStart hook to %s\n", settingsPath())
 	}
 	if dir := o.vals["bin-dir"]; dir != "" {
-		link := filepath.Join(absClean(dir), "ccanchor"+exeSuffix)
+		link := filepath.Join(absClean(dir), "intow"+exeSuffix)
 		os.MkdirAll(filepath.Dir(link), 0o755)
 		os.Remove(link)
 		if err := os.Symlink(bin, link); err != nil {
@@ -217,7 +228,7 @@ func (c *cli) cmdUninstall(argv []string) (int, error) {
 		}
 		c.printf("removed SessionStart hook from %s\n", settingsPath())
 	} else {
-		c.printf("no ccanchor hook in %s\n", settingsPath())
+		c.printf("no intow hook in %s\n", settingsPath())
 	}
 	if o.has("purge") {
 		if err := os.RemoveAll(stateDir()); err != nil {

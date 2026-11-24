@@ -31,10 +31,10 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      # Build provenance for every asset: `gh attestation verify <file> --repo p10node/ccanchor`.
+      # Build provenance for every asset: `gh attestation verify <file> --repo p10node/intow`.
       - uses: actions/attest@v4
         with:
-          subject-checksums: dist/ccanchor_${{ steps.v.outputs.version }}_checksums.txt
+          subject-checksums: dist/intow_${{ steps.v.outputs.version }}_checksums.txt
       # Only now does the plugin move to this version, with the checksums it will accept.
       - name: Pin the checksums in the plugin
         run: scripts/pin-plugin.sh "${{ steps.v.outputs.version }}"

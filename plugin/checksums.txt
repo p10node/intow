@@ -1,2 +1,2 @@
 # sha256 of the release assets for the version in .claude-plugin/plugin.json.
-# Written by scripts/pin-plugin.sh at release time. scripts/ccanchor runs no other download.
+# Written by scripts/pin-plugin.sh at release time. scripts/intow runs no other download.

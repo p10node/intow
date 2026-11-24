@@ -16,26 +16,26 @@ test('claudeEnv layers claudeCode.environmentVariables over the process env', ()
 
 test('candidates: setting, PATH, usual folders, config dir, plugin data', () => {
   const list = ext.candidates({
-    setting: '~/tools/ccanchor',
+    setting: '~/tools/intow',
     env: { PATH: '/a:/b', CLAUDE_CONFIG_DIR: '/cfg' },
     home: '/home/u',
     platform: 'linux',
     readdir: (d) => {
-      if (d === '/cfg/plugins/data') return ['other-plugin', 'ccanchor-ccanchor'];
+      if (d === '/cfg/plugins/data') return ['other-plugin', 'intow-intow'];
       assert.strictEqual(d, '/home/u/.claude/plugins/data');
       throw new Error('ENOENT');
     },
   });
   assert.deepStrictEqual(list, [
-    '/home/u/tools/ccanchor',
-    '/a/ccanchor',
-    '/b/ccanchor',
-    '/opt/homebrew/bin/ccanchor',
-    '/usr/local/bin/ccanchor',
-    '/home/u/.local/bin/ccanchor',
-    '/cfg/ccanchor/bin/ccanchor',
-    '/cfg/plugins/data/ccanchor-ccanchor/bin/ccanchor',
-    '/home/u/.claude/ccanchor/bin/ccanchor', // installed once, used from every profile
+    '/home/u/tools/intow',
+    '/a/intow',
+    '/b/intow',
+    '/opt/homebrew/bin/intow',
+    '/usr/local/bin/intow',
+    '/home/u/.local/bin/intow',
+    '/cfg/intow/bin/intow',
+    '/cfg/plugins/data/intow-intow/bin/intow',
+    '/home/u/.claude/intow/bin/intow', // installed once, used from every profile
   ]);
 });
 
@@ -49,7 +49,7 @@ test('candidates: default config dir, no plugins folder', () => {
       throw new Error('ENOENT');
     },
   });
-  assert.ok(list.includes('/home/u/.claude/ccanchor/bin/ccanchor'));
+  assert.ok(list.includes('/home/u/.claude/intow/bin/intow'));
   assert.ok(!list.some((p) => p.includes('plugins')));
 });
 
@@ -99,43 +99,43 @@ function context() {
 }
 
 test('activate runs `sync --apply` with the config dir Claude Code uses, and reports a move', { skip: process.platform === 'win32' }, async () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ccanchor-vscode-'));
-  const bin = path.join(dir, 'ccanchor');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'intow-vscode-'));
+  const bin = path.join(dir, 'intow');
   const record = path.join(dir, 'ran');
   fs.writeFileSync(bin, `#!/bin/sh\necho "$CLAUDE_CONFIG_DIR $*" >> "${record}"\necho "moved /old -> /new (1 session)"\n`, { mode: 0o755 });
   const { vscode, calls } = fakeVscode({
-    'ccanchor.path': bin,
+    'intow.path': bin,
     'claudeCode.environmentVariables': [{ name: 'CLAUDE_CONFIG_DIR', value: '/profile/x' }],
   });
   await withVscode(vscode, () => ext.activate(context()));
   assert.strictEqual(fs.readFileSync(record, 'utf8'), '/profile/x sync --apply\n');
   assert.strictEqual(calls.info.length, 1);
   assert.match(calls.info[0], /followed \/old -> \/new/);
-  assert.deepStrictEqual(Object.keys(calls.commands).sort(), ['ccanchor.status', 'ccanchor.sync']);
+  assert.deepStrictEqual(Object.keys(calls.commands).sort(), ['intow.status', 'intow.sync']);
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
 test('activate stays quiet when nothing moved, and does nothing when turned off', { skip: process.platform === 'win32' }, async () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ccanchor-vscode-'));
-  const bin = path.join(dir, 'ccanchor');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'intow-vscode-'));
+  const bin = path.join(dir, 'intow');
   const record = path.join(dir, 'ran');
   fs.writeFileSync(bin, `#!/bin/sh\necho x >> "${record}"\necho "nothing moved"\n`, { mode: 0o755 });
-  let f = fakeVscode({ 'ccanchor.path': bin });
+  let f = fakeVscode({ 'intow.path': bin });
   await withVscode(f.vscode, () => ext.activate(context()));
   assert.deepStrictEqual([f.calls.info, f.calls.warn], [[], []]);
   assert.strictEqual(fs.readFileSync(record, 'utf8'), 'x\n');
-  f = fakeVscode({ 'ccanchor.path': bin, 'ccanchor.syncOnStartup': false });
+  f = fakeVscode({ 'intow.path': bin, 'intow.syncOnStartup': false });
   await withVscode(f.vscode, () => ext.activate(context()));
   assert.strictEqual(fs.readFileSync(record, 'utf8'), 'x\n');
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
 test('a missing binary is reported once, not at every window', async () => {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'ccanchor-vscode-home-'));
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'intow-vscode-home-'));
   const saved = { HOME: process.env.HOME, USERPROFILE: process.env.USERPROFILE, PATH: process.env.PATH };
   Object.assign(process.env, { HOME: home, USERPROFILE: home, PATH: home });
   try {
-    const { vscode, calls } = fakeVscode({ 'ccanchor.path': path.join(home, 'nope') });
+    const { vscode, calls } = fakeVscode({ 'intow.path': path.join(home, 'nope') });
     const ctx = context();
     const found = ext.findBinary(ext.candidates({ setting: '', env: process.env, home, platform: process.platform, readdir: () => [] }), (p) => fs.existsSync(p));
     if (found) return; // a system-wide install (/usr/local/bin): nothing to check here

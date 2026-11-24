@@ -41,12 +41,12 @@ type Entry struct {
 	Found string `json:"found,omitempty"`
 	// Was is a path this folder used to have that another folder took before
 	// its history could follow (app -> app-old, then a new app). The history
-	// recorded under Was may belong here; `ccanchor link --force` decides.
+	// recorded under Was may belong here; `intow link --force` decides.
 	Was string `json:"was,omitempty"`
 }
 
 // Drift records that Claude Code named a project folder differently than
-// encode does. While it is set ccanchor moves nothing on its own: it would
+// encode does. While it is set intow moves nothing on its own: it would
 // put data where Claude does not look.
 type Drift struct {
 	Since int64  `json:"since"`
@@ -56,7 +56,7 @@ type Drift struct {
 }
 
 func (d *Drift) String() string {
-	return fmt.Sprintf("Claude Code stores %s under projects/%s, ccanchor expected projects/%s", d.Cwd, d.Got, d.Want)
+	return fmt.Sprintf("Claude Code stores %s under projects/%s, intow expected projects/%s", d.Cwd, d.Got, d.Want)
 }
 
 func (e *Entry) ident() Ident { return Ident{Dev: e.Dev, Ino: e.Ino, Hi: e.Hi, Birth: e.Birth} }

@@ -1,14 +1,14 @@
 {
-  "name": "ccanchor",
-  "displayName": "ccanchor for Claude Code",
+  "name": "intow",
+  "displayName": "intow for Claude Code",
   "description": "Claude Code history, memory and settings follow a project folder you moved or renamed, before the session list is read.",
   "version": "0.1.0",
   "publisher": "p10node",
   "license": "MIT",
-  "homepage": "https://github.com/p10node/ccanchor",
+  "homepage": "https://github.com/p10node/intow",
   "repository": {
     "type": "git",
-    "url": "https://github.com/p10node/ccanchor.git",
+    "url": "https://github.com/p10node/intow.git",
     "directory": "vscode"
   },
   "icon": "icon.png",
@@ -41,24 +41,24 @@
   "contributes": {
     "commands": [
       {
-        "command": "ccanchor.sync",
-        "title": "ccanchor: Follow Moved Folders Now"
+        "command": "intow.sync",
+        "title": "intow: Follow Moved Folders Now"
       },
       {
-        "command": "ccanchor.status",
-        "title": "ccanchor: Show Status"
+        "command": "intow.status",
+        "title": "intow: Show Status"
       }
     ],
     "configuration": {
-      "title": "ccanchor",
+      "title": "intow",
       "properties": {
-        "ccanchor.path": {
+        "intow.path": {
           "type": "string",
           "default": "",
           "scope": "machine",
-          "markdownDescription": "Path of the `ccanchor` binary. Leave empty to find it on `PATH`, in the usual install folders, or where the Claude Code plugin keeps it."
+          "markdownDescription": "Path of the `intow` binary. Leave empty to find it on `PATH`, in the usual install folders, or where the Claude Code plugin keeps it."
         },
-        "ccanchor.syncOnStartup": {
+        "intow.syncOnStartup": {
           "type": "boolean",
           "default": true,
           "scope": "machine",

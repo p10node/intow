@@ -1,4 +1,4 @@
-module github.com/p10node/ccanchor
+module github.com/p10node/intow
 
 go 1.26.0
 

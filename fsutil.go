@@ -76,7 +76,7 @@ func isExistErr(err error) bool {
 // A symlink stays a symlink: the file it points at is the one replaced.
 func atomicWrite(path string, data []byte, perm fs.FileMode) error {
 	path = resolveLink(path)
-	f, err := os.CreateTemp(filepath.Dir(path), ".ccanchor-*")
+	f, err := os.CreateTemp(filepath.Dir(path), ".intow-*")
 	if err != nil {
 		return err
 	}
@@ -229,7 +229,7 @@ func copyFile(src, dst string, perm fs.FileMode) error {
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return err
 	}
-	f, err := os.CreateTemp(filepath.Dir(dst), ".ccanchor-*")
+	f, err := os.CreateTemp(filepath.Dir(dst), ".intow-*")
 	if err != nil {
 		return err
 	}
@@ -249,7 +249,7 @@ func copyFile(src, dst string, perm fs.FileMode) error {
 	return err
 }
 
-// backup copies path into ~/.claude/ccanchor/backups and keeps the newest 20 per file.
+// backup copies path into ~/.claude/intow/backups and keeps the newest 20 per file.
 func backup(path string) string {
 	if !exists(path) {
 		return ""

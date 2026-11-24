@@ -29,7 +29,7 @@ type Report struct {
 	Undo       bool        `json:"undo,omitempty"` // this entry took an earlier migration back
 	Skipped    string      `json:"-"`
 
-	j *journal // what was done, for `ccanchor undo`; nil in dry runs
+	j *journal // what was done, for `intow undo`; nil in dry runs
 }
 
 func (r *Report) changed() bool {
@@ -406,7 +406,7 @@ func uniqueName(dir, name string) string {
 
 // checkRewritten notes when the transcripts of a project dir still record the
 // old folder after the rewrite: Claude Code then writes "cwd" in a form
-// rewriteField does not know, and ccanchor needs an update.
+// rewriteField does not know, and intow needs an update.
 func checkRewritten(dir, old string, rep *Report) {
 	if cwd := recordedCwd(dir); cwd != "" && under(cwd, old) {
 		rep.Notes = append(rep.Notes, "sessions in projects/"+filepath.Base(dir)+

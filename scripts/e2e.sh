@@ -14,10 +14,10 @@ root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 claude=${CLAUDE_BIN:-claude}
 version=$(sed -n 's/^[[:space:]]*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$root/plugin/.claude-plugin/plugin.json" | head -n 1)
 cfg=${CLAUDE_CONFIG_DIR:-$HOME/.claude}
-work="$HOME/.ccanchor-e2e-$$" # not a temp dir: those are never tracked
+work="$HOME/.intow-e2e-$$" # not a temp dir: those are never tracked
 state_existed=no
-[ -d "$cfg/ccanchor" ] && state_existed=yes
-ls "$cfg/plugins/data" 2>/dev/null | sort >"/tmp/ccanchor-e2e-data-before.$$" || true
+[ -d "$cfg/intow" ] && state_existed=yes
+ls "$cfg/plugins/data" 2>/dev/null | sort >"/tmp/intow-e2e-data-before.$$" || true
 
 enc() { printf '%s' "$1" | sed 's/[^a-zA-Z0-9]/-/g'; }
 pass=0 failed=0
@@ -34,30 +34,30 @@ cleanup() {
       rm -rf "$d"
     fi
   done
-  if [ "$state_existed" = no ]; then rm -rf "$cfg/ccanchor"; else "$root/dist/ccanchor" forget "$work" >/dev/null 2>&1 || true; fi
-  ls "$cfg/plugins/data" 2>/dev/null | sort | comm -13 "/tmp/ccanchor-e2e-data-before.$$" - | while read -r d; do
-    case $d in *ccanchor*) rm -rf "${cfg:?}/plugins/data/$d" ;; esac
+  if [ "$state_existed" = no ]; then rm -rf "$cfg/intow"; else "$root/dist/intow" forget "$work" >/dev/null 2>&1 || true; fi
+  ls "$cfg/plugins/data" 2>/dev/null | sort | comm -13 "/tmp/intow-e2e-data-before.$$" - | while read -r d; do
+    case $d in *intow*) rm -rf "${cfg:?}/plugins/data/$d" ;; esac
   done
-  rm -f "/tmp/ccanchor-e2e-data-before.$$"
+  rm -f "/tmp/intow-e2e-data-before.$$"
   rm -rf "$work"
 }
 trap cleanup EXIT
 
-echo "== build ccanchor $version and a local release"
+echo "== build intow $version and a local release"
 rel="$work/release/v$version"
 mkdir -p "$rel" "$work/build"
 case $(uname -m) in arm64 | aarch64) arch=arm64 ;; *) arch=amd64 ;; esac
 os=$(uname -s | tr '[:upper:]' '[:lower:]')
-(cd "$root" && CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=$version" -o "$work/build/ccanchor" .)
-mkdir -p "$root/dist" && cp "$work/build/ccanchor" "$root/dist/ccanchor"
-asset="ccanchor_${version}_${os}_${arch}.tar.gz"
-tar -czf "$rel/$asset" -C "$work/build" ccanchor
-(cd "$rel" && shasum -a 256 "$asset" >"ccanchor_${version}_checksums.txt")
+(cd "$root" && CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=$version" -o "$work/build/intow" .)
+mkdir -p "$root/dist" && cp "$work/build/intow" "$root/dist/intow"
+asset="intow_${version}_${os}_${arch}.tar.gz"
+tar -czf "$rel/$asset" -C "$work/build" intow
+(cd "$rel" && shasum -a 256 "$asset" >"intow_${version}_checksums.txt")
 
 run() { # run <dir> <prompt> [extra args...]
   dir=$1 prompt=$2
   shift 2
-  (cd "$dir" && CCANCHOR_RELEASE_BASE="file://$work/release" CCANCHOR_CHECKSUMS="$rel/ccanchor_${version}_checksums.txt" \
+  (cd "$dir" && INTOW_RELEASE_BASE="file://$work/release" INTOW_CHECKSUMS="$rel/intow_${version}_checksums.txt" \
     "$claude" -p "$prompt" \
     --plugin-dir "$root/plugin" --setting-sources project --model haiku "$@" </dev/null 2>&1)
 }
@@ -66,7 +66,7 @@ echo "== 1. first session in projA"
 mkdir -p "$work/projA"
 out=$(run "$work/projA" "Reply with exactly: OK")
 check "first session answers" '[ "$(printf %s "$out" | tail -n 1)" = OK ]'
-check "registry tracks projA" 'grep -q "\"$work/projA\"" "$cfg/ccanchor/registry.json"'
+check "registry tracks projA" 'grep -q "\"$work/projA\"" "$cfg/intow/registry.json"'
 old_dir="$cfg/projects/$(enc "$work/projA")"
 first=$(basename "$(ls "$old_dir"/*.jsonl | head -n 1)" .jsonl)
 mkdir -p "$old_dir/memory"

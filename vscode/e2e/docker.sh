@@ -3,7 +3,7 @@
 #   vscode/e2e/docker.sh
 set -eu
 root=$(CDPATH='' cd -- "$(dirname -- "$0")/../.." && pwd)
-(cd "$root" && CGO_ENABLED=0 go build -trimpath -o dist/ccanchor .)
+(cd "$root" && CGO_ENABLED=0 go build -trimpath -o dist/intow .)
 docker run --rm -v "$root":/src:ro node:22-bookworm bash -c '
   set -e
   export DEBIAN_FRONTEND=noninteractive
@@ -15,5 +15,5 @@ docker run --rm -v "$root":/src:ro node:22-bookworm bash -c '
   # Not xvfb-run: it can miss the ready signal of the X server and wait forever.
   Xvfb :99 -screen 0 1280x1024x24 -nolisten tcp >/dev/null 2>&1 &
   sleep 2
-  DISPLAY=:99 CCANCHOR_BIN=/src/dist/ccanchor timeout 300 node e2e/run.js
+  DISPLAY=:99 INTOW_BIN=/src/dist/intow timeout 300 node e2e/run.js
 '
