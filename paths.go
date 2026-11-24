@@ -39,6 +39,18 @@ func stateDir() string     { return filepath.Join(configDir(), "ccanchor") }
 func settingsPath() string { return filepath.Join(configDir(), "settings.json") }
 func installedBin() string { return filepath.Join(stateDir(), "bin", "ccanchor"+exeSuffix) }
 
+// samePath compares two paths the way the platform does (see foldCase).
+func samePath(a, b string) bool {
+	if foldCase {
+		return strings.EqualFold(a, b)
+	}
+	return a == b
+}
+
+func hasPrefix(s, prefix string) bool {
+	return len(s) >= len(prefix) && samePath(s[:len(prefix)], prefix)
+}
+
 // under reports whether path is root or inside it.
 func under(path, root string) bool {
 	if path == "" || root == "" {
@@ -48,22 +60,38 @@ func under(path, root string) bool {
 	if root == "" {
 		return strings.HasPrefix(path, sep)
 	}
-	return path == root || strings.HasPrefix(path, root+sep)
+	return hasPrefix(path, root) && (len(path) == len(root) || strings.HasPrefix(path[len(root):], sep))
 }
 
 // rebase swaps the prefix old of path (which must be under old) for new.
 func rebase(path, old, new string) string { return new + path[len(old):] }
 
+// rebasePath is rebase for a path as some file of Claude Code spells it. On
+// Windows that may be with forward slashes or the other drive-letter case;
+// the result keeps the spelling. ok is false when p is not under old, or is
+// spelled the new way already.
+func rebasePath(p, old, new string) (out string, ok bool) {
+	native := filepath.FromSlash(p)
+	if !under(native, old) {
+		return p, false
+	}
+	out = respell(rebase(native, old, new), native)
+	if native != p {
+		out = filepath.ToSlash(out)
+	}
+	return out, out != p
+}
+
 func isTrash(p string) bool {
 	q := filepath.ToSlash(p) + "/"
 	return strings.Contains(q, "/.Trash/") || strings.Contains(q, "/.Trashes/") ||
-		strings.Contains(q, "/.local/share/Trash/") || strings.Contains(q, "/$Recycle.Bin/")
+		strings.Contains(q, "/.local/share/Trash/") || strings.Contains(strings.ToLower(q), "/$recycle.bin/")
 }
 
 func isTemp(p string) bool {
 	q := p + sep
 	for _, t := range tempPrefixes {
-		if strings.HasPrefix(q, t) {
+		if hasPrefix(q, t) {
 			return true
 		}
 	}

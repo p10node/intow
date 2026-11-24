@@ -7,12 +7,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"syscall"
 )
 
 const hookMatcher = "startup|resume"
-
-func isCrossDevice(err error) bool { return errors.Is(err, syscall.EXDEV) }
 
 // hookBinary is the path the hook runs. A ccanchor found on PATH (e.g. Homebrew's
 // /opt/homebrew/bin/ccanchor) is used as is so upgrades apply; otherwise the
@@ -182,7 +179,7 @@ func (c *cli) cmdInstall(argv []string) (int, error) {
 		return 1, err
 	}
 	stripOurHooks(settings)
-	addOurHook(settings, shellQuote(bin)+" hook")
+	addOurHook(settings, hookCommand(bin))
 	b, err := saveSettings(settings)
 	if err != nil {
 		return 1, err

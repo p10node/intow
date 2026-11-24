@@ -17,6 +17,58 @@ type hookInput struct {
 	Source         string `json:"source"`
 }
 
+type naming int
+
+const (
+	namingUnknown naming = iota // nothing to judge by
+	namingAgrees                // Claude Code names cwd's project folder the way encode does
+	namingOther                 // the session lives in another folder's project folder
+	namingDrift                 // Claude Code names project folders differently than encode
+)
+
+// checkNaming compares the project folder Claude Code actually uses for this
+// session (the directory of its transcript) with the name encode predicts.
+// got is that folder's name and folder the path it was judged by.
+//
+// A different name alone proves nothing: a session resumed from another git
+// worktree stays in that worktree's project folder. The scheme is only in
+// doubt when the folder recorded inside would not get this name either.
+func checkNaming(cwd, transcript string) (n naming, got, folder string) {
+	if cwd == "" || transcript == "" {
+		return namingUnknown, "", ""
+	}
+	dir := filepath.Dir(transcript)
+	if realPath(filepath.Dir(dir)) != realPath(projectsDir()) {
+		return namingUnknown, "", ""
+	}
+	got = filepath.Base(dir)
+	if got == encode(cwd) {
+		return namingAgrees, got, cwd
+	}
+	rec := recordedCwd(dir)
+	switch {
+	case rec == "" || len(sanitize(rec)) > maxName: // empty so far, or a hashed long name
+		return namingUnknown, got, ""
+	case encode(rec) == got:
+		return namingOther, got, rec
+	}
+	return namingDrift, got, rec
+}
+
+// sameDir reports whether two paths lead to one directory.
+func sameDir(a, b string) bool {
+	ia, err1 := statIdent(a)
+	ib, err2 := statIdent(b)
+	return err1 == nil && err2 == nil && ia == ib
+}
+
+func realPath(p string) string {
+	if r, err := filepath.EvalSymlinks(p); err == nil {
+		return r
+	}
+	return filepath.Clean(p)
+}
+
 // cmdHook is the SessionStart hook. It never fails: Claude must always start.
 func (c *cli) cmdHook(argv []string) (int, error) {
 	data, _ := io.ReadAll(io.LimitReader(c.stdin, 1<<20))
@@ -26,21 +78,55 @@ func (c *cli) cmdHook(argv []string) (int, error) {
 	if cwd == "" {
 		cwd, _ = os.Getwd()
 	}
+	if os.Getenv("CLAUDE_CODE_PROJECT_DIR_NAME") != "" {
+		return 0, nil // this session's data has a fixed name: it does not depend on the path
+	}
 	var reports []*Report
 	var here *Report
 	var warnings []string
 	err := withLock(10*time.Second, func() error {
 		reg := loadRegistry()
+		kind, got, folder := checkNaming(cwd, in.TranscriptPath)
+		switch kind {
+		case namingDrift:
+			reg.setDrift(folder, got)
+		case namingAgrees:
+			reg.clearDrift()
+		}
+		if reg.Drift != nil {
+			warnings = append(warnings, "automatic following is paused: "+reg.Drift.String()+
+				"; update ccanchor (the naming scheme of Claude Code changed)")
+			return reg.save()
+		}
 		if id, err := statIdent(cwd); err == nil && !isTemp(cwd) {
+			was := ""
 			// Is the folder Claude is starting in one that was moved here?
 			if _, e := reg.find(id); e != nil && e.Path != cwd {
-				if exists(e.Path) {
+				if samePath(e.Path, cwd) || sameDir(e.Path, cwd) {
+					// The recorded path still leads here: the same folder under
+					// another spelling. Only a change of case is a rename;
+					// two mount points or drive-letter cases are both right.
+					if caseRename(e.Path, cwd) {
+						rep, err := migrate(e.Path, cwd, migrateOpts{ExcludeSession: in.SessionID, Reg: reg})
+						if rep != nil {
+							reports = append(reports, rep)
+							here = rep
+						}
+						if err != nil {
+							return err
+						}
+					}
+				} else if exists(e.Path) {
+					was = e.Path
 					warnings = append(warnings, fmt.Sprintf(
-						"this folder used to be %s, which now holds another folder; run `ccanchor link %s %s` if its history belongs here",
+						"this folder used to be %s, which now holds another folder; if the history recorded there belongs here, "+
+							"`ccanchor link --force %s %s` moves all of it (`-n` shows what first)",
 						e.Path, shellQuote(e.Path), shellQuote(cwd)))
 				} else {
+					// Put the data where Claude keeps this session, unless that
+					// is the project folder of some other folder.
 					dst := ""
-					if in.TranscriptPath != "" {
+					if in.TranscriptPath != "" && kind != namingOther {
 						dst = filepath.Dir(in.TranscriptPath)
 					}
 					rep, err := migrate(e.Path, cwd, migrateOpts{DstOverride: dst, ExcludeSession: in.SessionID, Reg: reg})
@@ -53,7 +139,10 @@ func (c *cli) cmdHook(argv []string) (int, error) {
 					}
 				}
 			}
-			reg.track(cwd)
+			if key, err := reg.track(cwd); err == nil && was != "" {
+				reg.Entries[key].Was = was
+				reg.dirty = true
+			}
 		}
 		more, err := syncAll(reg, true, in.SessionID)
 		reports = append(reports, more...)
@@ -71,6 +160,11 @@ func (c *cli) cmdHook(argv []string) (int, error) {
 		if r.changed() {
 			parts = append(parts, r.short())
 		}
+	}
+	if here != nil && here.changed() && os.Getenv("CLAUDE_CODE_ENTRYPOINT") == "claude-vscode" {
+		// The editor extension drew its session list before this hook ran, and
+		// only reads it again when asked.
+		parts = append(parts, "reopen or refresh the session list to see the earlier sessions")
 	}
 	parts = append(parts, warnings...)
 	if len(parts) == 0 {

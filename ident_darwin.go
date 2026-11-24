@@ -4,6 +4,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 	"syscall"
 	"unsafe"
 
@@ -26,6 +27,15 @@ func statIdent(path string) (Ident, error) {
 // /.vol is authoritative on macOS, so there is no need to scan the disk.
 const scanFallback = false
 
+// caseRename reports whether new is old with only the case of letters changed.
+// macOS volumes are case-insensitive by default, so the old name still leads
+// to the folder; Claude Code, which keys everything by the exact string, has
+// lost it all the same. getcwd and F_GETPATH both return the name as stored,
+// so the new spelling is the folder's, not something a user typed.
+func caseRename(old, new string) bool { return old != new && strings.EqualFold(old, new) }
+
+const followsCaseRenames = true
+
 // platformResolve finds a directory's current path from its (device, inode)
 // through /.vol/<dev>/<ino> and fcntl(F_GETPATH).
 func platformResolve(e *Entry) string {
@@ -40,12 +50,8 @@ func platformResolve(e *Entry) string {
 		if p == "" {
 			continue
 		}
-		id, err := statIdent(p)
-		if err != nil || id.Ino != e.Ino {
-			continue
-		}
-		if e.Birth != 0 && id.Birth != e.Birth {
-			continue // inode number reused by an unrelated directory
+		if id, err := statIdent(p); err != nil || !e.is(id) {
+			continue // gone again, or the inode number was reused by another directory
 		}
 		return p
 	}

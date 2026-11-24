@@ -4,11 +4,36 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 )
+
+// Paths are compared exactly: that is how Claude Code keys its data.
+const foldCase = false
+
+// respell and variants deal with the several spellings one folder has on
+// Windows; here a path has one.
+func respell(p, like string) string { return p }
+
+func variants(old, new string) [][2]string { return [][2]string{{old, new}} }
+
+func isCrossDevice(err error) bool { return errors.Is(err, syscall.EXDEV) }
+
+// crossDeviceMove hands over to the system mv, which keeps symlinks,
+// permissions and timestamps.
+func crossDeviceMove(src, dst string) error {
+	if out, err := exec.Command("mv", "--", src, dst).CombinedOutput(); err != nil {
+		return fmt.Errorf("mv: %v: %s", err, strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
+func hookCommand(bin string) string { return shellQuote(bin) + " hook" }
 
 func processAlive(pid int) bool {
 	if pid <= 0 {

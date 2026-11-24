@@ -38,3 +38,9 @@ func statIdent(path string) (Ident, error) {
 	}
 	return id, nil
 }
+
+// caseRename: Linux filesystems are case-sensitive, so a folder that is still
+// reachable by its recorded name has not been renamed.
+func caseRename(old, new string) bool { return false }
+
+const followsCaseRenames = false

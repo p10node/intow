@@ -46,8 +46,21 @@ func (c *cli) cmdStatus(argv []string) (int, error) {
 	reg := loadRegistry()
 	type planned struct{ state, new string }
 	moved := map[string]planned{}
+	// Folders whose old path another folder took before their history followed.
+	var displaced [][2]string
 	for _, a := range plan(reg) {
+		if a.State == "replaced" {
+			if a.New != "" {
+				displaced = append(displaced, [2]string{a.Old, a.New})
+			}
+			continue // the path itself is fine: another folder lives there
+		}
 		moved[a.Old] = planned{a.State, a.New}
+	}
+	for _, k := range reg.sortedKeys() {
+		if e := reg.Entries[k]; e.Was != "" {
+			displaced = append(displaced, [2]string{e.Was, e.Path})
+		}
 	}
 	byEnc := map[string]string{}
 	tracked := map[string]bool{}
@@ -160,6 +173,21 @@ func (c *cli) cmdStatus(argv []string) (int, error) {
 	}
 	if untracked {
 		c.printf("\nSome folders are untracked; `ccanchor scan` records them.\n")
+	}
+	shown := false
+	for _, d := range displaced {
+		if len(projectDirsUnder(d[0])) == 0 {
+			continue
+		}
+		if !shown {
+			c.printf("\nMoved aside, and another folder now has the old path. If the history recorded under the old path\n" +
+				"belongs to the moved folder, this moves all of it (check with -n first):\n")
+			shown = true
+		}
+		c.printf("  ccanchor link --force %s %s\n", shellQuote(d[0]), shellQuote(d[1]))
+	}
+	if reg.Drift != nil {
+		c.printf("\nAutomatic following is paused: %s.\nUpdate ccanchor; it resumes when the names agree again.\n", reg.Drift)
 	}
 	return 0, nil
 }
@@ -309,8 +337,12 @@ func (c *cli) cmdSync(argv []string) (int, error) {
 	}
 	apply, quiet := o.has("apply"), o.has("q", "quiet")
 	var reports []*Report
+	var paused *Drift
 	run := func() error {
 		reg := loadRegistry()
+		if paused = reg.Drift; paused != nil && apply {
+			return nil
+		}
 		var err error
 		reports, err = syncAll(reg, apply, "")
 		if apply {
@@ -324,6 +356,12 @@ func (c *cli) cmdSync(argv []string) (int, error) {
 		err = withLock(15*time.Second, run)
 	} else {
 		err = run()
+	}
+	if paused != nil && apply {
+		if quiet {
+			return 0, nil
+		}
+		return 1, fmt.Errorf("paused: %s; update ccanchor", paused)
 	}
 	if !c.printReports(reports, !apply, quiet) && !quiet {
 		c.printf("nothing moved\n")
@@ -372,6 +410,9 @@ func (c *cli) cmdLink(argv []string) (int, error) {
 	var rep *Report
 	run := func() error {
 		reg := loadRegistry()
+		if reg.Drift != nil && !dry && !force {
+			return fmt.Errorf("paused: %s; update ccanchor (or pass --force)", reg.Drift)
+		}
 		opt := migrateOpts{DryRun: dry, Force: force}
 		if !dry {
 			opt.Reg = reg
@@ -418,10 +459,12 @@ func (c *cli) cmdMv(argv []string) (int, error) {
 	if !isDir(src) {
 		return 2, fmt.Errorf("%s is not a folder", src)
 	}
-	if isDir(dst) {
+	// On a case-insensitive volume `mv app App` names the folder itself.
+	caseOnly := src != dst && sameFile(src, dst)
+	if isDir(dst) && !caseOnly {
 		dst = filepath.Join(dst, filepath.Base(src))
 	}
-	if exists(dst) {
+	if exists(dst) && !caseOnly {
 		return 2, fmt.Errorf("%s already exists", dst)
 	}
 	parent := filepath.Dir(dst)
@@ -438,6 +481,9 @@ func (c *cli) cmdMv(argv []string) (int, error) {
 				return 2, fmt.Errorf("Claude is running in %s (pid %d); quit it first or pass --force", src, s.PID)
 			}
 		}
+	}
+	if d := loadRegistry().Drift; d != nil && !dry && !force {
+		return 1, fmt.Errorf("paused: %s; update ccanchor (or pass --force)", d)
 	}
 	if dry {
 		rep, err := migrate(src, dst, migrateOpts{DryRun: true, Force: true})
@@ -474,17 +520,218 @@ func (c *cli) cmdMv(argv []string) (int, error) {
 	return 0, nil
 }
 
-// moveFolder renames, or across volumes hands over to the system mv, which
-// keeps symlinks, permissions and timestamps.
+// moveFolder renames, or across volumes hands over to the platform.
 func moveFolder(src, dst string) error {
 	err := os.Rename(src, dst)
 	if err == nil || !isCrossDevice(err) {
 		return err
 	}
-	if out, err := exec.Command("mv", "--", src, dst).CombinedOutput(); err != nil {
-		return fmt.Errorf("mv: %v: %s", err, strings.TrimSpace(string(out)))
+	return crossDeviceMove(src, dst)
+}
+
+// ---- undo
+
+type logEntry struct {
+	TS int64 `json:"ts"`
+	Report
+}
+
+func readLog() []logEntry {
+	f, err := os.Open(filepath.Join(stateDir(), "log.jsonl"))
+	if err != nil {
+		return nil
 	}
-	return nil
+	defer f.Close()
+	var out []logEntry
+	sc := bufio.NewScanner(f)
+	sc.Buffer(make([]byte, 1<<20), 1<<24)
+	for sc.Scan() {
+		var d logEntry
+		if json.Unmarshal(sc.Bytes(), &d) == nil && d.Old != "" && d.New != "" {
+			out = append(out, d)
+		}
+	}
+	return out
+}
+
+// cmdUndo takes the most recent migration back, or the most recent one of a
+// given folder: what it moved returns under the old path, unless Claude has
+// continued a session or changed a setting in the new place since. The folder
+// is no longer tracked afterwards, so it is not followed there again.
+func (c *cli) cmdUndo(argv []string) (int, error) {
+	o, err := parseArgs(argv, []string{"n", "dry-run", "f", "force"}, nil)
+	if err != nil {
+		return 2, err
+	}
+	if len(o.args) > 1 {
+		return 2, errors.New("usage: ccanchor undo [-n] [-f] [FOLDER]")
+	}
+	folder := ""
+	if len(o.args) == 1 {
+		folder = absClean(o.args[0])
+	}
+	dry, force := o.has("n", "dry-run"), o.has("f", "force")
+	var j *journal
+	var u *undone
+	run := func() error {
+		if j = lastJournal(folder); j == nil {
+			return nil
+		}
+		if !force {
+			for _, s := range liveSessions() {
+				if under(s.Cwd, j.New) {
+					return fmt.Errorf("Claude is running in %s (pid %d); quit it first or pass --force", j.New, s.PID)
+				}
+			}
+		}
+		var err error
+		if u, err = j.undo(dry); err != nil || dry {
+			return err
+		}
+		reg := loadRegistry()
+		for k, e := range reg.Entries {
+			if under(e.Path, j.New) || under(e.Path, j.Old) {
+				delete(reg.Entries, k)
+				reg.dirty = true
+			}
+		}
+		j.markUndone()
+		if u.changed() {
+			appendLog(&Report{Old: j.New, New: j.Old, Sessions: u.Sessions, Memory: u.Memory,
+				ConfigKeys: u.ConfigKeys, RepoPaths: u.RepoPaths, Plugins: u.Plugins, History: u.History, Undo: true})
+		}
+		return reg.save()
+	}
+	if dry {
+		err = run()
+	} else {
+		err = withLock(15*time.Second, run)
+	}
+	if err != nil {
+		return 1, err
+	}
+	if j == nil {
+		if folder != "" {
+			c.printf("no migration of %s to undo\n", folder)
+		} else {
+			c.printf("no migration to undo\n")
+		}
+		return 1, nil
+	}
+	head := "undid"
+	if dry {
+		head = "would undo"
+	}
+	var bits []string
+	if u.Sessions > 0 {
+		bits = append(bits, plural(u.Sessions, "session"))
+	}
+	if u.Memory > 0 {
+		bits = append(bits, plural(u.Memory, "memory file"))
+	}
+	if u.ConfigKeys > 0 || u.RepoPaths > 0 {
+		bits = append(bits, "settings")
+	}
+	if u.Plugins > 0 {
+		bits = append(bits, plural(u.Plugins, "plugin install"))
+	}
+	if u.History > 0 {
+		bits = append(bits, plural(u.History, "history line"))
+	}
+	if len(bits) == 0 {
+		bits = []string{"nothing left to take back"}
+	}
+	c.printf("%s %s -> %s of %s: %s back under %s\n", head, j.Old, j.New,
+		time.Unix(j.TS, 0).Format("2006-01-02 15:04:05"), strings.Join(bits, ", "), j.Old)
+	for _, n := range u.Notes {
+		c.printf("    note: %s\n", n)
+	}
+	if !dry {
+		c.printf("%s is no longer tracked; `ccanchor link %s %s` attaches the history to it again\n",
+			j.New, shellQuote(j.Old), shellQuote(j.New))
+	}
+	return 0, nil
+}
+
+// ---- shell-init
+
+// stableSelf is the path a shell function should call: `ccanchor` when that
+// is this binary, else the version-independent name next to the plugin's
+// binary, else the binary itself.
+func stableSelf() string {
+	self, err := os.Executable()
+	if err != nil {
+		return "ccanchor"
+	}
+	real, err := filepath.EvalSymlinks(self)
+	if err != nil {
+		real = self
+	}
+	if p, err := exec.LookPath("ccanchor"); err == nil {
+		if r, err := filepath.EvalSymlinks(p); err == nil && r == real {
+			return "ccanchor"
+		}
+	}
+	if alias := filepath.Join(filepath.Dir(real), "ccanchor"+exeSuffix); alias != real {
+		if r, err := filepath.EvalSymlinks(alias); err == nil && r == real {
+			return alias
+		}
+	}
+	return real
+}
+
+// cmdShellInit prints a `claude` shell function that follows moved folders
+// before Claude Code starts. The SessionStart hook is too late for
+// `claude --continue` and `--resume`: Claude looks for the session first and
+// gives up ("No conversation found to continue") before any hook runs.
+func (c *cli) cmdShellInit(argv []string) (int, error) {
+	o, err := parseArgs(argv, nil, nil)
+	if err != nil {
+		return 2, err
+	}
+	shell := filepath.Base(os.Getenv("SHELL"))
+	if shell == "." && exeSuffix != "" {
+		shell = "powershell" // no $SHELL on Windows outside Git Bash
+	}
+	if len(o.args) > 0 {
+		shell = o.args[0]
+	}
+	self := stableSelf()
+	if shell == "powershell" || shell == "pwsh" {
+		// Get-Command -CommandType Application skips this function and finds claude.exe or claude.cmd.
+		call := "ccanchor"
+		have := "Get-Command ccanchor -CommandType Application -ErrorAction SilentlyContinue"
+		if filepath.IsAbs(self) {
+			q := "'" + strings.ReplaceAll(self, "'", "''") + "'"
+			call, have = "& "+q, "Test-Path -LiteralPath "+q
+		}
+		c.printf("function claude {\n  if (%s) { %s sync --apply -q }\n"+
+			"  $real = Get-Command claude -CommandType Application -ErrorAction Stop | Select-Object -First 1\n"+
+			"  & $real.Source @args\n}\n", have, call)
+		return 0, nil
+	}
+	if exeSuffix != "" {
+		self = filepath.ToSlash(self) // Git Bash
+	}
+	bin := shellQuote(self)
+	switch shell {
+	case "fish":
+		have := "command -q " + bin
+		if filepath.IsAbs(self) {
+			have = "test -x " + bin
+		}
+		c.printf("function claude --wraps claude --description 'Claude Code, after ccanchor followed moved folders'\n"+
+			"    %s; and %s sync --apply -q\n    command claude $argv\nend\n", have, bin)
+	case "zsh", "bash", "sh", "ksh", "dash":
+		have := "command -v " + bin + " >/dev/null 2>&1"
+		if filepath.IsAbs(self) {
+			have = "[ -x " + bin + " ]"
+		}
+		c.printf("claude() {\n  %s && %s sync --apply -q\n  command claude \"$@\"\n}\n", have, bin)
+	default:
+		return 2, fmt.Errorf("unknown shell %q: use zsh, bash, fish or powershell", shell)
+	}
+	return 0, nil
 }
 
 // ---- log
@@ -498,31 +745,21 @@ func (c *cli) cmdLog(argv []string) (int, error) {
 	if v := o.vals["n"]; v != "" {
 		fmt.Sscanf(v, "%d", &limit)
 	}
-	f, err := os.Open(filepath.Join(stateDir(), "log.jsonl"))
-	if err != nil {
+	entries := readLog()
+	if len(entries) == 0 {
 		c.printf("no migrations yet\n")
 		return 0, nil
 	}
-	defer f.Close()
-	var lines []string
-	sc := bufio.NewScanner(f)
-	sc.Buffer(make([]byte, 1<<20), 1<<24)
-	for sc.Scan() {
-		lines = append(lines, sc.Text())
+	if len(entries) > limit {
+		entries = entries[len(entries)-limit:]
 	}
-	if len(lines) > limit {
-		lines = lines[len(lines)-limit:]
-	}
-	for _, l := range lines {
-		var d struct {
-			TS int64 `json:"ts"`
-			Report
+	for _, d := range entries {
+		kind := ""
+		if d.Undo {
+			kind = "  [undo]"
 		}
-		if json.Unmarshal([]byte(l), &d) != nil {
-			continue
-		}
-		c.printf("%s  %s -> %s  (%d sessions, %d memory, %d settings)\n",
-			time.Unix(d.TS, 0).Format("2006-01-02 15:04:05"), d.Old, d.New, d.Sessions, d.Memory, d.ConfigKeys)
+		c.printf("%s  %s -> %s  (%d sessions, %d memory, %d settings)%s\n",
+			time.Unix(d.TS, 0).Format("2006-01-02 15:04:05"), d.Old, d.New, d.Sessions, d.Memory, d.ConfigKeys, kind)
 	}
 	return 0, nil
 }

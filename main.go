@@ -29,6 +29,9 @@ Usage:
   ccanchor scan [-q]                 start tracking every existing project folder
   ccanchor forget PATH...            stop tracking folders
   ccanchor log [-n N]                past migrations
+  ccanchor undo [-n] [FOLDER]        take the last migration back (of FOLDER, if given)
+  ccanchor shell-init [SHELL]        a claude function that syncs first (zsh, bash, fish, powershell):
+                                       eval "$(ccanchor shell-init)"
   ccanchor install [--bin-dir DIR]   add the SessionStart hook to ~/.claude/settings.json
   ccanchor uninstall [--purge]       remove that hook (--purge: also all ccanchor state)
   ccanchor hook                      the SessionStart hook itself (run by Claude Code)
@@ -60,6 +63,7 @@ func (c *cli) run(argv []string) int {
 		"status": c.cmdStatus, "sync": c.cmdSync, "mv": c.cmdMv, "link": c.cmdLink,
 		"scan": c.cmdScan, "forget": c.cmdForget, "log": c.cmdLog, "hook": c.cmdHook,
 		"install": c.cmdInstall, "uninstall": c.cmdUninstall,
+		"undo": c.cmdUndo, "shell-init": c.cmdShellInit,
 	}
 	switch cmd {
 	case "version", "--version":

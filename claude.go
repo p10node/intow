@@ -90,7 +90,7 @@ func projectDirsUnder(root string) []projectDir {
 	var out []projectDir
 	for _, e := range ents {
 		name := e.Name()
-		if !e.IsDir() || !strings.HasPrefix(name, prefix) {
+		if !e.IsDir() || !hasPrefix(name, prefix) {
 			continue
 		}
 		cwd := recordedCwd(filepath.Join(projectsDir(), name))
