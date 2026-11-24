@@ -7,11 +7,11 @@
   </defs>
   <rect width="1024" height="1024" rx="224" fill="url(#bg)"/>
   <g fill="none" stroke="#f4f7fb" stroke-linecap="round" stroke-linejoin="round">
-    <circle cx="512" cy="252" r="72" stroke-width="52"/>
-    <path d="M512 340 V812" stroke-width="60"/>
-    <path d="M356 420 H668" stroke-width="52"/>
-    <path d="M232 596 Q248 812 512 830 Q776 812 792 596" stroke-width="56"/>
-    <path d="M178 650 L232 586 L292 640" stroke-width="52"/>
-    <path d="M732 640 L792 586 L846 650" stroke-width="52"/>
+    <!-- the folder, moving up and to the right -->
+    <path d="M396 372 V300 Q396 256 440 256 H556 L620 332 H800 Q844 332 844 376 V560 Q844 604 800 604 H440 Q396 604 396 560 Z" stroke-width="56"/>
+    <!-- the towline -->
+    <path d="M430 640 Q400 760 330 772" stroke-width="44"/>
+    <!-- what comes along in tow -->
+    <rect x="164" y="700" width="170" height="144" rx="40" stroke-width="52"/>
   </g>
 </svg>
