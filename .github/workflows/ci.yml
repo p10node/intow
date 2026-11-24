@@ -8,8 +8,11 @@ jobs:
   test:
     strategy:
       matrix:
-        os: [macos-latest, ubuntu-latest]
+        os: [macos-latest, ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -18,7 +21,12 @@ jobs:
       - run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
       - run: go vet ./...
       - run: go test -race -count=1 ./...
-      - name: Windows still compiles
-        run: GOOS=windows GOARCH=amd64 go build -o /dev/null .
+      - name: Every target compiles
+        run: for os in darwin linux windows; do GOOS=$os GOARCH=arm64 go build -o /dev/null . || exit 1; done
       - name: Shell scripts parse
-        run: for f in plugin/scripts/ccanchor scripts/*.sh; do sh -n "$f"; done
+        run: for f in plugin/scripts/ccanchor scripts/*.sh vscode/e2e/*.sh; do sh -n "$f"; done
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Editor extension
+        run: cd vscode && node --test
