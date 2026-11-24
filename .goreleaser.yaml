@@ -1,12 +1,14 @@
-# Release: push a tag vX.Y.Z whose version matches plugin/.claude-plugin/plugin.json.
-# The plugin launcher downloads ccanchor_<version>_<os>_<arch>.tar.gz and
-# checks it against ccanchor_<version>_checksums.txt, so keep these names.
+# Release: push a tag vX.Y.Z. After the build, scripts/pin-plugin.sh commits
+# ccanchor_<version>_checksums.txt into plugin/checksums.txt together with the
+# plugin's version. The plugin launcher downloads
+# ccanchor_<version>_<os>_<arch>.tar.gz and accepts it only when it matches
+# that pinned checksum, so keep these names.
 version: 2
 project_name: ccanchor
 
 builds:
   - env: [CGO_ENABLED=0]
-    goos: [darwin, linux]
+    goos: [darwin, linux, windows]
     goarch: [amd64, arm64]
     flags: [-trimpath]
     ldflags: ["-s -w -X main.version={{ .Version }}"]

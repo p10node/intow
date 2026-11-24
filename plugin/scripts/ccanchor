@@ -2,8 +2,10 @@
 # Runs the ccanchor binary that matches this plugin's version.
 #
 # Order: $CCANCHOR_BIN (development), a binary cached in $CLAUDE_PLUGIN_DATA,
-# else the release asset for this version from GitHub, verified against the
-# release's sha256 checksums. As a hook it never fails: Claude must start.
+# else the release asset for this version from GitHub. The download must match
+# the sha256 pinned in this plugin's own checksums.txt, which the release
+# workflow commits next to the version bump: replacing a release asset is not
+# enough to change what runs. As a hook it never fails: Claude must start.
 set -u
 
 REPO="p10node/ccanchor"
@@ -24,12 +26,15 @@ fi
 version=$(sed -n 's/^[[:space:]]*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$root/.claude-plugin/plugin.json" | head -n 1)
 [ -n "$version" ] || fail "cannot read the plugin version"
 data=${CLAUDE_PLUGIN_DATA:-$HOME/.claude/ccanchor}
-bin="$data/bin/ccanchor-$version"
+exe=
+case $(uname -s) in MINGW* | MSYS* | CYGWIN*) exe=.exe ;; esac
+bin="$data/bin/ccanchor-$version$exe"
 
 download() {
   case $(uname -s) in
     Darwin) os=darwin ;;
     Linux) os=linux ;;
+    MINGW* | MSYS* | CYGWIN*) os=windows ;; # Git Bash, which is how Claude Code runs hooks on Windows
     *) fail "unsupported OS: $(uname -s)" ;;
   esac
   case $(uname -m) in
@@ -39,24 +44,26 @@ download() {
   esac
   asset="ccanchor_${version}_${os}_${arch}.tar.gz"
   base="${CCANCHOR_RELEASE_BASE:-https://github.com/$REPO/releases/download}/v$version"
+  sums=${CCANCHOR_CHECKSUMS:-$root/checksums.txt}
+  want=$(grep " $asset\$" "$sums" 2>/dev/null | cut -d' ' -f1 | head -n 1)
+  [ -n "$want" ] || fail "no checksum for $asset in $sums"
   tmp=$(mktemp -d 2>/dev/null) || fail "mktemp failed"
   get() { curl -fsSL --retry 2 -o "$2" "$1" 2>/dev/null || wget -q -O "$2" "$1" 2>/dev/null; }
-  if ! get "$base/$asset" "$tmp/$asset" || ! get "$base/ccanchor_${version}_checksums.txt" "$tmp/sums"; then
+  if ! get "$base/$asset" "$tmp/$asset"; then
     rm -rf "$tmp"
     fail "could not download $asset"
   fi
-  want=$(grep " $asset\$" "$tmp/sums" | cut -d' ' -f1)
   if command -v shasum >/dev/null 2>&1; then
     got=$(shasum -a 256 "$tmp/$asset" | cut -d' ' -f1)
   else
     got=$(sha256sum "$tmp/$asset" | cut -d' ' -f1)
   fi
-  if [ -z "$want" ] || [ "$want" != "$got" ]; then
+  if [ "$want" != "$got" ]; then
     rm -rf "$tmp"
     fail "checksum mismatch for $asset"
   fi
-  if ! tar -xzf "$tmp/$asset" -C "$tmp" ccanchor || ! mkdir -p "$data/bin" ||
-    ! mv "$tmp/ccanchor" "$bin.$$" || ! chmod 755 "$bin.$$" || ! mv "$bin.$$" "$bin"; then
+  if ! tar -xzf "$tmp/$asset" -C "$tmp" "ccanchor$exe" || ! mkdir -p "$data/bin" ||
+    ! mv "$tmp/ccanchor$exe" "$bin.$$" || ! chmod 755 "$bin.$$" || ! mv "$bin.$$" "$bin"; then
     rm -rf "$tmp" "$bin.$$"
     fail "could not install the binary into $data/bin"
   fi
@@ -65,6 +72,12 @@ download() {
   for old in "$data"/bin/ccanchor-*; do
     [ "$old" = "$bin" ] || rm -f "$old"
   done
+  # a name that survives plugin updates, for `ccanchor shell-init` and the editor extension
+  if [ -n "$exe" ]; then
+    cp -f "$bin" "$data/bin/ccanchor$exe" 2>/dev/null || true # no symlinks without admin rights
+  else
+    ln -sf "ccanchor-$version" "$data/bin/ccanchor" 2>/dev/null || true
+  fi
 }
 
 [ -x "$bin" ] || download

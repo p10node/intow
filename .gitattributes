@@ -1,0 +1,4 @@
+# Shell scripts must keep LF, also in a checkout on Windows: the plugin's
+# launcher runs straight from the clone.
+* text=auto eol=lf
+*.png binary

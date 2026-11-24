@@ -2,7 +2,8 @@
 # End-to-end test against a real, logged-in Claude Code.
 #
 # Loads ./plugin with --plugin-dir and serves the release asset from a local
-# file:// "release", so the plugin's download-and-verify path is exercised.
+# file:// "release" with its own checksum file, so the plugin's
+# download-and-verify path is exercised.
 # Then it renames and moves a folder and checks that the next session in the
 # new place sees the old memory and can resume the old session.
 # Costs three small Haiku requests. Removes everything it creates under ~/.claude.
@@ -56,7 +57,8 @@ tar -czf "$rel/$asset" -C "$work/build" ccanchor
 run() { # run <dir> <prompt> [extra args...]
   dir=$1 prompt=$2
   shift 2
-  (cd "$dir" && CCANCHOR_RELEASE_BASE="file://$work/release" "$claude" -p "$prompt" \
+  (cd "$dir" && CCANCHOR_RELEASE_BASE="file://$work/release" CCANCHOR_CHECKSUMS="$rel/ccanchor_${version}_checksums.txt" \
+    "$claude" -p "$prompt" \
     --plugin-dir "$root/plugin" --setting-sources project --model haiku "$@" </dev/null 2>&1)
 }
 
