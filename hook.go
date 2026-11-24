@@ -161,7 +161,10 @@ func (c *cli) cmdHook(argv []string) (int, error) {
 					}
 				}
 			}
-			if key, err := reg.track(cwd); err == nil && was != "" {
+			if here != nil && len(here.Busy) > 0 {
+				// The history still waits under the old path. Recording this path
+				// now would forget that it is owed, and nothing would retry it.
+			} else if key, err := reg.track(cwd); err == nil && was != "" {
 				reg.Entries[key].Was = was
 				reg.dirty = true
 			}
@@ -187,6 +190,10 @@ func (c *cli) cmdHook(argv []string) (int, error) {
 		// The editor extension drew its session list before this hook ran, and
 		// only reads it again when asked.
 		parts = append(parts, "reopen or refresh the session list to see the earlier sessions")
+	}
+	if here != nil && len(here.Busy) > 0 {
+		parts = append(parts, fmt.Sprintf("the history of %s waits until Claude quits there (pid %s); "+
+			"it moves here at the next start after that", here.Old, strings.Join(here.Busy, ", ")))
 	}
 	parts = append(parts, warnings...)
 	if len(parts) == 0 {

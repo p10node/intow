@@ -135,6 +135,13 @@ func (r *Registry) track(path string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	// The folder was moved here, but its history has not followed yet (Claude
+	// was still running in the old path). Keep the old path: it is where sync
+	// and the next session start move the history from. A migration that
+	// succeeds rebases the entry first.
+	if k, e := r.find(id); e != nil && e.Path != path && !exists(e.Path) {
+		return k, nil
+	}
 	key := id.key()
 	now := time.Now().Unix()
 	for k, e := range r.Entries {

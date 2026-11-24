@@ -327,6 +327,45 @@ func TestWaitsWhileClaudeRunsInOldPath(t *testing.T) {
 	}
 }
 
+// The folder is renamed while the editor still has a Claude process in it,
+// then Claude starts in the new place. The history must wait for that process,
+// not be forgotten because the new path was recorded in the meantime.
+func TestHookInMovedFolderWaitsWhileClaudeRunsInOldPath(t *testing.T) {
+	s := newSandbox(t)
+	proj := s.setupProject()
+	newp := filepath.Join(s.work, "renamed")
+	must(t, os.Rename(proj, newp))
+	sdir := filepath.Join(s.home, ".claude", "sessions")
+	must(t, os.MkdirAll(sdir, 0o755))
+	live := filepath.Join(sdir, fmt.Sprintf("%d.json", os.Getpid()))
+	b, _ := json.Marshal(map[string]any{"pid": os.Getpid(), "sessionId": "zzz", "cwd": proj})
+	must(t, os.WriteFile(live, b, 0o644))
+	must(t, os.MkdirAll(s.pdir(newp), 0o755))
+	must(t, os.WriteFile(filepath.Join(s.pdir(newp), "current.jsonl"), []byte(`{"type":"user","cwd":"`+q(newp)+`"}`+"\n"), 0o600))
+
+	out := s.hook(newp)
+	if out == nil || !strings.Contains(out["systemMessage"].(string), "waits until Claude quits there") || !exists(s.pdir(proj)) {
+		t.Fatalf("expected the history to wait: %v", out)
+	}
+	if _, ok := out["hookSpecificOutput"]; ok {
+		t.Error("nothing moved yet, so no context expected")
+	}
+	// status calls the new path untracked and suggests scan; that must not drop the move either.
+	s.run("", "scan", "-q")
+
+	must(t, os.Remove(live))
+	out = s.hook(newp)
+	if out == nil || exists(s.pdir(proj)) {
+		t.Fatalf("expected the next start to move the history: %v", out)
+	}
+	if got := listDir(t, s.pdir(newp)); !reflect.DeepEqual(got, []string{"current.jsonl", "memory", "s1.jsonl", "s2.jsonl"}) {
+		t.Errorf("new project dir: %v", got)
+	}
+	if !isFile(filepath.Join(s.pdir(sub(newp, "sub")), "s3.jsonl")) {
+		t.Error("subfolder session not moved")
+	}
+}
+
 func TestTrashIsNotFollowed(t *testing.T) {
 	s := newSandbox(t)
 	proj := s.setupProject()
@@ -1002,6 +1041,39 @@ func TestCaseOnlyRename(t *testing.T) {
 		if !isRegular(filepath.Join(s.pdir(newp), filepath.FromSlash(f))) {
 			t.Errorf("%s was deleted", f)
 		}
+	}
+}
+
+// The old spelling still leads to the folder, so only the registry remembers
+// that its history is owed to the new one.
+func TestCaseOnlyRenameWaitsWhileClaudeRunsInOldSpelling(t *testing.T) {
+	s := newSandbox(t)
+	if !caseInsensitive(t, s.root) {
+		t.Skip("this filesystem is case-sensitive")
+	}
+	proj := s.folder("app")
+	s.session(proj, "s1", nil)
+	s.run("", "scan", "-q")
+	newp := filepath.Join(s.work, "App")
+	must(t, os.Rename(proj, newp))
+	if !caseRename(proj, newp) {
+		t.Skip("two spellings of one folder are both valid here")
+	}
+	sdir := filepath.Join(s.home, ".claude", "sessions")
+	must(t, os.MkdirAll(sdir, 0o755))
+	live := filepath.Join(sdir, fmt.Sprintf("%d.json", os.Getpid()))
+	b, _ := json.Marshal(map[string]any{"pid": os.Getpid(), "sessionId": "zzz", "cwd": proj})
+	must(t, os.WriteFile(live, b, 0o644))
+
+	if out := s.hook(newp); out == nil || !strings.Contains(out["systemMessage"].(string), "waits until Claude quits there") {
+		t.Fatalf("expected the history to wait: %v", out)
+	}
+	must(t, os.Remove(live))
+	if out := s.hook(newp); out == nil {
+		t.Fatal("expected the next start to move the history")
+	}
+	if got := cwds(t, filepath.Join(s.pdir(newp), "s1.jsonl"))[0]; got != newp {
+		t.Errorf("cwd = %v", got)
 	}
 }
 

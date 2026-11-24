@@ -28,6 +28,10 @@ type Report struct {
 	Notes      []string    `json:"notes,omitempty"`
 	Undo       bool        `json:"undo,omitempty"` // this entry took an earlier migration back
 	Skipped    string      `json:"-"`
+	// Busy lists the Claude processes still running in the old path when that
+	// is why the migration was skipped. It is owed, not refused: the registry
+	// must keep the old path so that a later run retries it.
+	Busy []string `json:"-"`
 
 	j *journal // what was done, for `intow undo`; nil in dry runs
 }
@@ -121,6 +125,7 @@ func migrate(old, new string, o migrateOpts) (*Report, error) {
 		}
 		if len(pids) > 0 {
 			rep.Skipped = "Claude is still running there (pid " + strings.Join(pids, ", ") + "); will retry later"
+			rep.Busy = pids
 			return rep, nil
 		}
 	}
