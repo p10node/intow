@@ -28,9 +28,12 @@ git clone -q "https://x-access-token:${TAP_TOKEN:?TAP_TOKEN is not set}@github.c
 mkdir -p "$tmp/tap/Formula"
 cp "$tmp/intow.rb" "$tmp/tap/Formula/intow.rb"
 cd "$tmp/tap"
-git -c user.name="intow release" -c user.email="noreply@github.com" commit -qam "intow $version" || {
+# `git add`, not `commit -a`: on the first release the formula is a new file.
+git add Formula/intow.rb
+git diff --cached --quiet && {
   echo "formula unchanged"
   exit 0
 }
+git -c user.name="intow release" -c user.email="noreply@github.com" commit -qm "intow $version"
 git push -q origin HEAD
 echo "pushed Formula/intow.rb $version to $tap"
