@@ -89,6 +89,8 @@ It deliberately leaves a folder alone in these cases:
 - The old path now holds a different folder, for example after `mv app app-old` and a fresh clone into `app`. The history under that path could belong to either, so it stays. intow remembers the folder that was moved aside, and the hook and `status` print the `intow link --force` command that hands the history to it.
 - Claude Code names project folders differently than intow expects, because a new version changed the scheme. intow compares the two at every session start and pauses itself instead of moving data to a place Claude does not read. A session started with `CLAUDE_CODE_PROJECT_DIR_NAME` is left alone as well: its data does not depend on the path.
 
+The approach, the rules for carrying state across a move and what an agent could do about it natively are written up in [RFC 0001: Follow the folder, not the path](docs/rfc/0001-folder-identity.md).
+
 ## Commands
 
 | Command                                 | What it does                                                                                                                                                                                                                                                                                                           |
@@ -131,7 +133,7 @@ It deliberately leaves a folder alone in these cases:
 - **Copies.** Copying to another disk or cloning a repository afresh creates a new folder with a new identity. Use `intow mv` for the move, or `link` afterwards.
 - **`claude --continue` and `claude --resume` right after a move.** Claude Code looks for the session before it runs hooks, so the hook comes too late for these two. Install the shell function (see Install), or run `intow sync --apply` once.
 - **Editors.** The Claude Code extension for VS Code starts Claude, and with it the hook, when you open the Claude panel. Its session list is read before that and is not refreshed on its own: reopen it, or install the VS Code extension from this repository (see Install).
-- **Windows is new.** Its file-ID code has been tested under Wine, not yet on many real machines. A folder that programs spell in two ways (`C:\` in a terminal, `c:\` from an editor) keeps one history per spelling, as Claude Code itself does; intow moves both. A rename that only changes case is not followed there, and neither is a move to another drive: use `intow link`.
+- **Windows is new.** Its tests pass under Wine and on a Windows runner in CI, but it has not been used with Claude Code on many real machines. A folder that programs spell in two ways (`C:\` in a terminal, `c:\` from an editor) keeps one history per spelling, as Claude Code itself does; intow moves both. A rename that only changes case is not followed there, and neither is a move to another drive: use `intow link`.
 - **Linux, hidden folders.** The search skips hidden and dependency folders (`.cache`, `node_modules`), except the ones the project lived in.
 - **State intow cannot reach.** What an editor stores per workspace (open panels, session groups), and absolute paths written inside the project itself, for example in `.claude/settings.local.json`.
 
