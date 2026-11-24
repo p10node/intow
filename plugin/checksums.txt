@@ -1,2 +1,8 @@
 # sha256 of the release assets for the version in .claude-plugin/plugin.json.
 # Written by scripts/pin-plugin.sh at release time. scripts/intow runs no other download.
+0eec0abfc1a45c184d59a144ac21517e02497a9154d40fa8e37218456abe848d  intow_0.1.0_darwin_amd64.tar.gz
+68d890aa2abbada7badeb660407fcb6d4d9bdf21a3671cd8d9b52095fdb944fc  intow_0.1.0_darwin_arm64.tar.gz
+eb0f0acf91971a2ba749e1d5b3881e6285ae8389b203ef1bf24a94d3b105524b  intow_0.1.0_linux_amd64.tar.gz
+558135ed44ed8a6507576af400b5ce7bbb285fbeea3aed99872026fc30804f25  intow_0.1.0_linux_arm64.tar.gz
+c75ca42aebc6300cc78c8e88f52ebbe7a34a7f4ed795457c7b060069872e627d  intow_0.1.0_windows_amd64.tar.gz
+eb714f1e1972fc1e4ccae2e7c97edd3134beb45525a3b164f728979f955fe39f  intow_0.1.0_windows_arm64.tar.gz
