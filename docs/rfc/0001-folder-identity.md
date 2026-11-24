@@ -37,7 +37,7 @@ For Claude Code 2.1.323 to 2.1.330 we checked what a user sees after `mv app app
 
 Nothing has been deleted at that point. The data is under a name that nothing points to. Claude Code removes transcripts older than `cleanupPeriodDays` (30 by default), so the orphaned sessions do disappear within a month.
 
-Open Claude Code issues about path-keyed state: #5768, #86713, #91735, #96013, #96018. Closed and locked: #12680, #24789, #27473, #33634, #33636, #37954, #41630, #47584, #48394, #52494, #69752, #70470, #79215, #84918.
+Open Claude Code issues about path-keyed state: #5768, #86713, #91735, #96013, #96018, #103094. Closed and locked: #12680, #24789, #27473, #33634, #33636, #37954, #41630, #47584, #48394, #52494, #69752, #70470, #79215, #84918.
 
 ## Goals
 
@@ -51,12 +51,12 @@ Not in scope: a shared format for sessions or memory, moving state into the proj
 
 ## Why not an ID file in the project
 
-Several earlier proposals put a generated ID in the project: `.claude/workspace.json` (a comment on claude-code #48394), `.opencode/project.json` (opencode #29703), `.claude/project-id` (claude-code #41630). An ID file is the only signal that survives a move to another machine, and this RFC keeps room for it. As the primary key it has costs:
+Several earlier proposals put a generated ID in the project: `.claude/workspace.json` (a comment on claude-code #48394), `.opencode/project.json` (opencode #29703), `.claude/project-id` (claude-code #41630). The most complete one is claude-code #103094, which is open: a random UUID in an unversioned `.claude-id` marker, with everything else kept outside the project. An ID file is the only signal that survives a move to another machine, and this RFC keeps room for it. As the primary key it has costs:
 
 - It needs write access to the project and adds a file per tool, or an agreement on one name. agentsmd/agents.md #71 has discussed a shared directory since 2025-09 without a decision.
 - A committed ID is shared by every clone, so two checkouts on one machine collide. An ignored ID is lost on a fresh clone.
 - `cp -r` duplicates the ID. Detecting that needs a second signal that tells the two folders apart, which is the identity this RFC starts from.
-- An ID that arrives with a repository is input from a stranger. If trust or permissions are keyed by it, a cloned repository can claim the ID of a project the user already trusts.
+- An ID that arrives with a repository is input from a stranger. If trust or permissions are keyed by it, a cloned repository can claim the ID of a project the user already trusts. #103094 sees this and asks for a trust record outside the project, the directory's last known path and filesystem identity, before a marker is believed. That record is the identity this RFC starts from.
 - Nobody benefits until a vendor ships it.
 
 ## Proposal
@@ -200,7 +200,7 @@ Known limits:
 
 ## Prior work
 
-- Stable ID in the project: claude-code #48394 (comment of 2026-07-03), #41630, #79215; opencode #29703; codex #21996.
+- Stable ID in the project: claude-code #103094 (open; an unversioned marker plus a trust record outside the project), #48394 (comment of 2026-07-03), #41630, #79215; opencode #29703; codex #21996.
 - A move command: claude-code #96018, which also has the most complete inventory of what holds the path; codex #26836.
 - State in the project: claude-code #96013.
 - Tools that re-key on request: the `claude-mv` family, `claude-move`, `claude-migrate`, `claude-rehome`, `ccmv`. For Codex, Cursor and OpenCode: ChatAnchor, which matches moved folders by git remotes, commits and earlier paths.

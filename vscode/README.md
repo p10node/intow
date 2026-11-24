@@ -1,10 +1,15 @@
 # intow for VS Code
 
-Runs [intow](https://github.com/p10node/intow) when a window opens, so that Claude Code's history, memory and settings have followed a moved or renamed project folder before the Claude Code extension reads its session list.
+Runs [intow](https://github.com/p10node/intow) when a window opens, so that Claude Code's history, memory and settings have followed a moved or renamed project folder before the Claude Code extension reads its session list or asks about trust.
 
 ## Why
 
-The Claude Code extension reads its session list straight from `~/.claude/projects/<encoded folder path>` and does not watch that folder. intow's `SessionStart` hook runs when the Claude panel starts a session. That can be after the list was drawn: the history is back on disk, but the list stays empty until you reopen or refresh it. This extension does the same work at window startup instead.
+The Claude Code extension reads its session lists straight from `~/.claude/projects/<encoded folder path>` and does not watch that folder. intow's `SessionStart` hook runs when Claude Code starts in the window, which is when you open its panel or its Session Manager. For two things that is a moment too late (seen with version 2.1.330 of the Claude Code extension):
+
+- The Session Manager in the side bar has already read its list. For a renamed folder it says "No sessions yet", and it keeps saying so until the window is reloaded, although the history is back on disk.
+- If you open the panel first, it asks whether you trust the folder, although the trust you gave follows a few seconds later.
+
+The history popup in the panel reads the list every time it opens, so it is not affected. This extension does the hook's work at window startup instead, before either of these.
 
 ## What it does
 

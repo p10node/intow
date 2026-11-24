@@ -1,12 +1,14 @@
 'use strict';
 // intow for VS Code: runs `intow sync --apply` when a window opens.
 //
-// The Claude Code extension reads its session list straight from
+// The Claude Code extension reads its session lists straight from
 // ~/.claude/projects/<encoded folder path> and does not watch that folder.
-// intow's own SessionStart hook runs when the Claude panel starts a
-// session, which can be after the list was drawn: the history is back on disk,
-// but the list stays empty until it is reopened. Running the sync at window
-// startup puts the data in place before anything reads it.
+// intow's own SessionStart hook runs when Claude Code starts in the window
+// (its panel or its Session Manager is opened). By then the Session Manager
+// has read its list, and shows "No sessions yet" for a renamed folder until
+// the window is reloaded; and the panel has checked trust, so it asks again.
+// The history popup re-reads the list each time it opens. Running the sync at
+// window startup puts the data in place before any of that.
 
 const { execFile } = require('child_process');
 const fs = require('fs');
@@ -133,7 +135,7 @@ function activate(context) {
       if (moved.length > 0) {
         vscode.window.showInformationMessage(
           `intow: Claude Code history followed ${moved.length === 1 ? moved[0] : moved.length + ' folders'}. ` +
-            'If a session list was already open, refresh it.',
+            'If the Session Manager was already open, reload the window to see it there.',
         );
       } else if (interactive) {
         vscode.window.showInformationMessage(res.code === 0 ? 'intow: nothing moved.' : `intow: ${res.stderr.trim() || 'failed'}`);

@@ -59,9 +59,14 @@ intow shell-init powershell | Out-String | Invoke-Expression   # PowerShell; put
 
 Claude Code looks for the session to continue before it runs any hook. Right after a rename, `claude --continue` therefore ends with "No conversation found to continue" and asks you to trust the folder again, and the hook never gets its turn. The function runs `intow sync --apply -q` first, which takes a few milliseconds, and then starts Claude. With only the plugin installed, `intow` is not on your `PATH`: run `/intow:shell` in Claude Code, which prints the same function with the plugin binary's path.
 
-**VS Code extension** (optional, for the Claude Code extension's session list): [`vscode/`](vscode) in this repository.
+**VS Code extension** (optional, for the Claude Code extension's Session Manager and its trust prompt): [`vscode/`](vscode) in this repository.
 
-The Claude Code extension reads its session list from disk when a window opens and does not watch the folder. The hook runs a moment later, when the Claude panel starts its session, so a list that is already on screen stays empty until it is reopened. The extension runs `intow sync --apply` at window startup instead, before anything reads the list. It needs the `intow` binary from one of the installs above.
+In an editor the hook runs when Claude Code starts in the window, which is when you open its panel or its Session Manager. For two things that is a moment too late (seen with version 2.1.330 of the Claude Code extension):
+
+- The Session Manager in the side bar has already read its list. For a renamed folder it says "No sessions yet", and it keeps saying so until the window is reloaded.
+- If you open the panel first, it asks whether you trust the folder, although the trust you gave follows a few seconds later.
+
+The history popup in the panel is not affected: it reads the list every time it opens. The extension runs `intow sync --apply` at window startup instead, before either of these. It needs the `intow` binary from one of the installs above.
 
 ## How it works
 
@@ -132,7 +137,7 @@ The approach, the rules for carrying state across a move and what an agent could
 - **Moves made before intow was installed.** intow only knows a folder's identity after it has seen the folder once. `status` lists earlier moves as orphans and suggests a `link` command.
 - **Copies.** Copying to another disk or cloning a repository afresh creates a new folder with a new identity. Use `intow mv` for the move, or `link` afterwards.
 - **`claude --continue` and `claude --resume` right after a move.** Claude Code looks for the session before it runs hooks, so the hook comes too late for these two. Install the shell function (see Install), or run `intow sync --apply` once.
-- **Editors.** The Claude Code extension for VS Code starts Claude, and with it the hook, when you open the Claude panel. Its session list is read before that and is not refreshed on its own: reopen it, or install the VS Code extension from this repository (see Install).
+- **Editors.** The Claude Code extension for VS Code starts Claude, and with it the hook, when you open its panel or its Session Manager. By then the Session Manager has read its list and the panel has checked trust. After a rename the Session Manager says "No sessions yet" until you reload the window, and the panel can ask you to trust the folder again. The VS Code extension from this repository avoids both (see Install). The history popup in the panel reads the list each time it opens and needs nothing.
 - **Windows is new.** Its tests pass under Wine and on a Windows runner in CI, but it has not been used with Claude Code on many real machines. A folder that programs spell in two ways (`C:\` in a terminal, `c:\` from an editor) keeps one history per spelling, as Claude Code itself does; intow moves both. A rename that only changes case is not followed there, and neither is a move to another drive: use `intow link`.
 - **Linux, hidden folders.** The search skips hidden and dependency folders (`.cache`, `node_modules`), except the ones the project lived in.
 - **State intow cannot reach.** What an editor stores per workspace (open panels, session groups), and absolute paths written inside the project itself, for example in `.claude/settings.local.json`.
