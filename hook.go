@@ -187,9 +187,10 @@ func (c *cli) cmdHook(argv []string) (int, error) {
 		}
 	}
 	if here != nil && here.changed() && os.Getenv("CLAUDE_CODE_ENTRYPOINT") == "claude-vscode" {
-		// The editor extension drew its session list before this hook ran, and
-		// only reads it again when asked.
-		parts = append(parts, "reopen or refresh the session list to see the earlier sessions")
+		// The editor extension's Session Manager read its list before this hook
+		// ran and only reads it again when the window is reloaded. The history
+		// popup reads it each time it opens.
+		parts = append(parts, "if the Session Manager shows no earlier sessions, reload the window")
 	}
 	if here != nil && len(here.Busy) > 0 {
 		parts = append(parts, fmt.Sprintf("the history of %s waits until Claude quits there (pid %s); "+
